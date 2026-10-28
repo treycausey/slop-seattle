@@ -708,3 +708,19 @@ test('player clearance respects altitude and permits a ground arrival under an a
   helicopter.position.y = 1;
   assert.notDeepEqual({ ...controller.teleportActiveTo(0, 0) }, { x: 0, z: 0 }, 'a helicopter parked at street level must be avoided');
 });
+
+test('injected city world governs ground, teleport limits and movement instead of Manhattan', () => {
+  const { controller, ent } = teleportHarness('car');
+  delete controller.getGroundHeight;
+  controller.world = {
+    bounds: { minX: -2000, maxX: 2000, minZ: -2500, maxZ: 2500 },
+    shoreAt: () => ({ westX: -1800, eastX: 2000 }),
+    heightAt: (x, z) => 40 + x * 0.01 + z * 0.001
+  };
+  const landing = controller.teleportActiveTo(1200, -1200);
+  assert.deepEqual({ ...landing }, { x: 1200, z: -1200 });
+  assert.equal(ent.position.y, 50.8);
+  ent.position.x = -1900;
+  controller.resolveHorizontalCollision(ent.position, 0.65, ent);
+  assert.equal(ent.position.x, -1792);
+});

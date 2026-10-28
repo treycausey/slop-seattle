@@ -31,6 +31,8 @@ import { polygonContact } from './building-collision.js';
 
 // Spawn on 5th Ave at 37th St, facing south down the avenue toward the Empire State Building (34th St)
 const SPAWN_Z = streetZ(37);
+const DEFAULT_WORLD_BOUNDS = ISLAND_BOUNDS;
+const defaultShoreAt = getIslandBoundsAtZ;
 const groundCollider = { type: 'ground' };
 
 const CAR_DRIVE = {
@@ -190,8 +192,9 @@ function createNYLicensePlateTexture() {
 }
 
 class ThirdPersonControllerManager {
-  constructor(scene, colliders = []) {
+  constructor(scene, colliders = [], world = null) {
     this.scene = scene;
+    this.world = world;
     this.colliders = colliders;
     this._colliderCells = null; // built on first use, see nearColliders()
     this.activeMode = 'car'; // 'person' | 'car' | 'cyclist' | 'helicopter'
@@ -377,6 +380,8 @@ class ThirdPersonControllerManager {
   // Find a fully clear arrival before moving the player. Sequential collision pushes can leave a player trapped
   // between overlapping buildings, so test whole candidate footprints instead; retain the old position if none fits.
   findTeleportPosition(x, z, heading, altitude) {
+    const ISLAND_BOUNDS = this.world?.bounds ?? DEFAULT_WORLD_BOUNDS;
+    const getIslandBoundsAtZ = this.world?.shoreAt ?? defaultShoreAt;
     if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
     const heli = this.activeMode === 'helicopter';
     const radius = heli ? 4.5 : this.activeMode === 'person' ? 0.48 : 0.65;
@@ -844,6 +849,7 @@ class ThirdPersonControllerManager {
   }
 
   getGroundHeight(x, z, mode = 'person') {
+    if (this.world) return this.world.heightAt(x, z, mode);
     // Inside Central Park (5th Ave to Central Park West, 59th St to 110th St)
     const cp = CENTRAL_PARK_BOUNDS;
     if (x > cp.minX && x < cp.maxX && z > cp.minZ && z < cp.maxZ) {
@@ -899,6 +905,8 @@ class ThirdPersonControllerManager {
   }
 
   resolveHorizontalCollision(pos, radius, carEntity = null, entity = carEntity) {
+    const ISLAND_BOUNDS = this.world?.bounds ?? DEFAULT_WORLD_BOUNDS;
+    const getIslandBoundsAtZ = this.world?.shoreAt ?? defaultShoreAt;
     // The detailed island (the helicopter may roam out over the harbour & the boroughs)
     const heli = this.activeMode === 'helicopter';
     const m = heli ? 6000 : 0;

@@ -18,7 +18,7 @@ Single acceptance record for the Seattle fork. The source snapshot contains 4,49
 | Use phone-sized viewport and joystick | Controls fit; touch drag moves active player | Touch end clears only touch input | Touch-emulated browser flow and 390×844 capture on both backends | Passed |
 | Request WebGL fallback | Same flows render without GPU validation errors | WebGPU remains default | `E2E_BACKEND=webgl bun run test:e2e`: PASS, no GPU errors | Passed |
 | Run permanent suite | Upstream contracts and Seattle data checks pass | Failures block publication | `bun run test`: 205 passed, 0 failed | Passed |
-| Publish main and load Pages | Fork main matches remote; public app and data load | Verify deployment status and public rendered page | GitHub Pages deployment and target check | Pending publication |
+| Publish main and load Pages | Fork main matches remote; public app and data load | Verify deployment status and public rendered page | [Successful Pages deployment](https://github.com/treycausey/slop-seattle/actions/runs/40789582031); public browser capture reports ready, 4,465 generic buildings and 2,317 roads; served `seattle.js` SHA-256 matches local | Passed |
 
 ## Rendering diagnosis
 

@@ -45,7 +45,7 @@ WebGL also interpreted the characters' 496-byte storage pose buffer as a per-ver
 | Select Night at the Market | Generated neon and analog clock remain legible | Time preset can return to daylight | Night capture | Passed |
 | Check asset budget | No downloaded texture/model files; Seattle JS below 28 KiB gzip | Byte budget and browser request assertions block shipment | 23,086 gzip bytes Seattle JS vs 12,400 baseline: +10,686 bytes; unchanged geographic snapshot; no media requests | Passed |
 | Exercise WebGPU and WebGL | Controls, scene and touch flow work without GPU errors | Inherited WebGL pose compatibility remains active | Both complete browser runs PASS; 365 scene meshes, 380,610 triangles, 45 materials, 12 generated textures | Passed |
-| Publish visual pass | Public site serves tested material/landmark modules | Compare served hashes and open the public page | GitHub Pages target verification | Pending publication |
+| Publish visual pass | Public site serves tested material/landmark modules | Compare served hashes and open the public page | [Successful deployment](https://github.com/treycausey/slop-seattle/actions/runs/40801888246); landmark/material SHA-256 matches; public Market view ready with clear camera and no shader errors | Passed |
 
 The first full native run timed out waiting for startup; subsequent native and WebGL runs completed without shader errors. A later run encountered resource connection resets before application initialization; its request origin was not recorded. URL logging was added, and fresh complete runs passed. Module-load failure reporting is tracked separately in [issue 2](https://github.com/treycausey/slop-seattle/issues/2). No cold-start timing claim is made.
 

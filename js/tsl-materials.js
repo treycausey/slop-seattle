@@ -3179,6 +3179,9 @@ function createCarFlareMaterial() {
 }
 
 export {
+  bumpNormal,
+  noise2D,
+  hash2D,
   cityUniforms,
   WALL_KINDS,
   filteredPulse,

@@ -4,10 +4,11 @@ import { CameraSystem } from "./cameras.js";
 import { LightingSystem } from "./lighting.js";
 import { TouchControls } from "./touch-controls.js";
 import { GamepadControls } from "./gamepad-controls.js";
-import { DESTINATIONS, WORLD, heightAt } from "./seattle-config.js";
+import { DESTINATIONS, WORLD, heightAt, LANDMARK_VIEWS } from "./seattle-config.js";
 import { buildSeattle } from "./seattle-city.js";
 import { SeattleMap, nearestRoad } from "./seattle-map.js";
 import { preparePlayerMaterials } from "./seattle-player-materials.js";
+import { resolveLandmarkView } from "./seattle-viewpoints.js";
 
 const $ = (id) => document.getElementById(id);
 const modes = ["person", "car", "cyclist", "helicopter"];
@@ -17,9 +18,12 @@ const modeNames = {
   cyclist: "Cycling",
   helicopter: "Helicopter",
 };
-const cameras = ["chase", "action", "pov", "skyline"];
+const cameras = ["chase", "action", "pov", "skyline", "landmark"];
 
 async function init() {
+  const startedAt = performance.now();
+  let readyAt = null,
+    shaderCompileMs = null;
   const status = $("loading-status");
   const response = await fetch(new URL("./seattle-data.json", import.meta.url));
   if (!response.ok)
@@ -48,13 +52,27 @@ async function init() {
   const camera = new CameraSystem(renderer.domElement, controllerManager);
   const touch = new TouchControls(controllerManager);
   let cameraIndex = 0;
+  let selectedPlace = DESTINATIONS[0];
+  const viewFor = (place) =>
+    resolveLandmarkView(
+      place,
+      LANDMARK_VIEWS[place.id],
+      city.colliders,
+      place.id === "wheel" ? 4 : heightAt(place.x, place.z),
+    );
+  let selectedView = viewFor(selectedPlace);
   const cycleCamera = () => {
     cameraIndex = (cameraIndex + 1) % cameras.length;
-    if (cameras[cameraIndex] !== "skyline") camera.setCameraPreset(cameras[cameraIndex], true);
+    if (!["skyline", "landmark"].includes(cameras[cameraIndex]))
+      camera.setCameraPreset(cameras[cameraIndex], true);
     $("camera-button").textContent =
-      { chase: "Chase", action: "Low angle", pov: "First person", skyline: "Skyline" }[
-        cameras[cameraIndex]
-      ] + " · V";
+      {
+        chase: "Chase",
+        action: "Low angle",
+        pov: "First person",
+        skyline: "Skyline",
+        landmark: "Place",
+      }[cameras[cameraIndex]] + " · V";
   };
   const gamepad = new GamepadControls(controllerManager, camera, {
     onCycleCamera: cycleCamera,
@@ -158,6 +176,11 @@ async function init() {
     button.addEventListener("click", () => {
       const p = nearestRoad(data, d.arrival.x, d.arrival.z);
       teleport(p.x, p.z, d.arrival.heading);
+      selectedPlace = d;
+      selectedView = viewFor(d);
+      cameraIndex = cameras.indexOf("landmark");
+      $("location-label").textContent = d.name;
+      $("camera-button").textContent = "Place · V";
       $("destinations").hidePopover();
     });
     $("destinations").appendChild(button);
@@ -223,6 +246,10 @@ async function init() {
         time: lighting.activePresetId,
         buildings: city.buildingCount,
         roads: data.roads.length,
+        visuals: city.visualStats(),
+        startupMs: readyAt === null ? null : Math.round(readyAt - startedAt),
+        shaderCompileMs,
+        placeView: cameras[cameraIndex] === "landmark" ? selectedView : null,
       };
     },
   };
@@ -230,7 +257,9 @@ async function init() {
   map.draw();
   camera.update(1 / 60, 0);
   lighting.update(camera.currentPos);
+  const compileStartedAt = performance.now();
   await renderer.compileAsync(scene, camera.camera);
+  shaderCompileMs = Math.round(performance.now() - compileStartedAt);
   let last = performance.now(),
     elapsed = 0,
     hudTime = 0,
@@ -247,8 +276,21 @@ async function init() {
     if (!modal) {
       controllerManager.update(dt, elapsed);
     } else controllerManager.resetInput();
+    if (
+      cameras[cameraIndex] === "landmark" &&
+      Object.values(controllerManager.keys).some(Boolean)
+    ) {
+      cameraIndex = 0;
+      camera.resetForTeleport();
+      $("camera-button").textContent = "Camera · V";
+    }
     camera.update(dt, elapsed);
-    if (cameras[cameraIndex] === "skyline") {
+    if (cameras[cameraIndex] === "landmark") {
+      const { eye, target } = selectedView;
+      camera.currentPos.set(...eye);
+      camera.camera.position.copy(camera.currentPos);
+      camera.camera.lookAt(...target);
+    } else if (cameras[cameraIndex] === "skyline") {
       camera.currentPos.set(-1800, 420, 250);
       camera.camera.position.copy(camera.currentPos);
       camera.camera.lookAt(250, 100, -400);
@@ -275,9 +317,11 @@ async function init() {
           : b,
       );
       $("location-label").textContent =
-        Math.hypot(landmark.x - p.position.x, landmark.z - p.position.z) < 240
-          ? landmark.name
-          : near.name;
+        cameras[cameraIndex] === "landmark"
+          ? selectedPlace.name
+          : Math.hypot(landmark.x - p.position.x, landmark.z - p.position.z) < 240
+            ? landmark.name
+            : near.name;
       $("speed").textContent = Math.round(Math.abs(p.speed) * 2.237);
       $("fps").textContent = `${Math.round(frames / hudTime)} FPS · N ↑`;
       map.draw();
@@ -285,6 +329,7 @@ async function init() {
       hudTime = 0;
     }
     if (document.body.dataset.ready !== "true") {
+      readyAt = performance.now();
       document.body.dataset.ready = "true";
       $("loading-overlay").hidden = true;
     }

@@ -1,62 +1,11 @@
 import * as THREE from "three/webgpu";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { createCurtainWallMaterial, createPreWarBuildingMaterial } from "./tsl-materials.js";
 import { BOUNDS, DESTINATIONS, heightAt, project, shoreAt } from "./seattle-config.js";
+import { polygonContains } from "./building-collision.js";
+import { createSeattlePalette, createSeattleFacades, surface } from "./seattle-materials.js";
+import { mesh, box, cylinder, batchStatic } from "./seattle-geometry.js";
+import { buildSeattleLandmarks } from "./seattle-landmarks.js";
 
-const material = (color, extra = {}) =>
-  new THREE.MeshStandardNodeMaterial({ color, roughness: 0.8, ...extra });
-const concrete = material(0xd4d3bd),
-  dark = material(0x354147),
-  green = material(0x46674a),
-  white = material(0xe7ece8);
-function mesh(parent, geo, mat, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(geo, mat);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  parent.add(m);
-  return m;
-}
-function box(parent, mat, x, y, z, w, h, d) {
-  return mesh(parent, new THREE.BoxGeometry(w, h, d), mat, x, y + h / 2, z);
-}
-function cylinder(parent, mat, x, y, z, rt, rb, h, segments = 24) {
-  return mesh(parent, new THREE.CylinderGeometry(rt, rb, h, segments), mat, x, y + h / 2, z);
-}
-function beam(parent, mat, a, b, r) {
-  const av = new THREE.Vector3(...a),
-    bv = new THREE.Vector3(...b),
-    v = bv.clone().sub(av);
-  const m = mesh(parent, new THREE.CylinderGeometry(r, r, v.length(), 8), mat);
-  m.position.copy(av.add(bv).multiplyScalar(0.5));
-  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.normalize());
-  return m;
-}
-function sign(parent, text, x, y, z, width, color = "#b22c2a") {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 160;
-  const c = canvas.getContext("2d");
-  c.fillStyle = color;
-  c.fillRect(0, 0, 1024, 160);
-  c.fillStyle = "#fff4d6";
-  c.font = "bold 86px sans-serif";
-  c.textAlign = "center";
-  c.textBaseline = "middle";
-  c.fillText(text, 512, 84, 1000);
-  const m = mesh(
-    parent,
-    new THREE.PlaneGeometry(width, (width * 160) / 1024),
-    new THREE.MeshBasicNodeMaterial({
-      map: new THREE.CanvasTexture(canvas),
-      side: THREE.DoubleSide,
-    }),
-    x,
-    y,
-    z,
-  );
-  return m;
-}
 function extrude(ring, height, base = 0) {
   const shape = new THREE.Shape(ring.map((p) => new THREE.Vector2(p[0], -p[1])));
   const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 });
@@ -77,10 +26,8 @@ function ribbon(points, width, offset = 0.1) {
       nz = ((dx / len) * width) / 2,
       steps = Math.ceil(len / 18);
     for (let j = 0; j < steps; j++) {
-      const t = j / steps,
-        u = (j + 1) / steps;
-      const p = [a[0] + dx * t, a[1] + dz * t],
-        q = [a[0] + dx * u, a[1] + dz * u];
+      const p = [a[0] + (dx * j) / steps, a[1] + (dz * j) / steps],
+        q = [a[0] + (dx * (j + 1)) / steps, a[1] + (dz * (j + 1)) / steps];
       const corners = [
         [p[0] - nx, p[1] - nz],
         [p[0] + nx, p[1] + nz],
@@ -98,16 +45,73 @@ function ribbon(points, width, offset = 0.1) {
   g.computeVertexNormals();
   return g;
 }
+function architecturalColliders(landmarks) {
+  const out = [];
+  const add = (g, x, z, w, d, y, h) => {
+    const cs = Math.cos(g.rotation.y),
+      sn = Math.sin(g.rotation.y),
+      cx = g.position.x + x * cs + z * sn,
+      cz = g.position.z - x * sn + z * cs,
+      hx = w / 2,
+      hz = d / 2;
+    const ex = Math.abs(cs) * hx + Math.abs(sn) * hz,
+      ez = Math.abs(sn) * hx + Math.abs(cs) * hz;
+    out.push({
+      minX: cx - ex,
+      maxX: cx + ex,
+      minZ: cz - ez,
+      maxZ: cz + ez,
+      minY: g.position.y + y,
+      maxY: g.position.y + y + h,
+      obb: { cx, cz, hx, hz, cs, sn },
+      landmark: g.name,
+    });
+  };
+  for (const g of landmarks) {
+    const id = DESTINATIONS.find((d) => d.name === g.name).id;
+    if (id === "needle") {
+      add(g, 0, 0, 39, 39, 0, 5);
+      add(g, 0, 0, 6, 6, 5, 141);
+      add(g, 0, 0, 42, 42, 146, 22);
+      add(g, 0, 0, 4, 4, 168, 16);
+    }
+    if (id === "market") add(g, 0, -3, 96, 25, 0, 15);
+    if (id === "columbia")
+      for (const [x, z, w, d, h] of [
+        [-19, 3, 31, 48, 284],
+        [4, 0, 31, 48, 273],
+        [25, -3, 24, 48, 258],
+      ])
+        add(g, x, z, w, d, 0, h);
+    if (id === "smith") {
+      add(g, 0, 0, 39, 35, 0, 34);
+      add(g, 0, 0, 27, 28, 34, 108);
+    }
+    if (id === "spheres")
+      for (const [x, r] of [
+        [-24, 15],
+        [0, 20],
+        [25, 14],
+      ])
+        add(g, x, 0, r * 1.8, r * 1.8, 0, r * 1.64);
+    if (id === "stadium")
+      for (const side of [-1, 1]) {
+        add(g, side * 62, 0, 58, 190, 0, 25);
+        add(g, 0, side * 108, 60, 30, 0, 20);
+      }
+  }
+  return out;
+}
 export function buildSeattle(scene, data) {
   const group = new THREE.Group();
   group.name = "Seattle";
   scene.add(group);
-  const colliders = [],
-    wheelParts = [],
+  const p = createSeattlePalette(),
+    styles = createSeattleFacades(),
+    colliders = [],
     ferries = [];
-  // Elliott Bay, Lake Union, a sloping mainland, and a distant Olympic silhouette.
-  const water = material(0x386574, { metalness: 0.45, roughness: 0.28 });
-  const bay = mesh(group, new THREE.PlaneGeometry(70000, 70000), water, 0, -0.5, 0);
+  const bay = mesh(group, new THREE.PlaneGeometry(70000, 70000), p.water, 0, -0.5, 0);
+  bay.name = "Elliott Bay";
   bay.rotation.x = -Math.PI / 2;
   bay.castShadow = false;
   const ground = [];
@@ -115,8 +119,7 @@ export function buildSeattle(scene, data) {
     for (let x = -2200; x < BOUNDS.maxX; x += 36) {
       const cx = x + 18,
         cz = z + 18;
-      if (cx < shoreAt(cz).westX) continue;
-      if (cz < -1930 && cx > -100 && cx < 1150) continue; // south end of Lake Union
+      if (cx < shoreAt(cz).westX || (cz < -1930 && cx > -100 && cx < 1150)) continue;
       for (const [dx, dz] of [
         [0, 0],
         [0, 36],
@@ -130,12 +133,10 @@ export function buildSeattle(scene, data) {
   const terrain = new THREE.BufferGeometry();
   terrain.setAttribute("position", new THREE.Float32BufferAttribute(ground, 3));
   terrain.computeVertexNormals();
-  mesh(group, terrain, material(0x777c73));
-  // Park boundaries and streets come from OSM, projected once at build time.
+  mesh(group, terrain, p.ground);
   for (const park of data.parks) {
     if (park.ring.length < 4) continue;
-    const g = extrude(park.ring, 0.15, heightAt(park.x, park.z) + 0.13);
-    mesh(group, g, green);
+    mesh(group, extrude(park.ring, 0.15, heightAt(park.x, park.z) + 0.13), p.grass);
   }
   const roadGeo = [],
     curbGeo = [],
@@ -146,23 +147,17 @@ export function buildSeattle(scene, data) {
     if (road.width >= 9) lineGeo.push(ribbon(road.points, 0.18, 0.27));
   }
   for (const [geos, mat] of [
-    [curbGeo, material(0xa5aaa2)],
-    [roadGeo, material(0x353e43, { roughness: 0.58 })],
-    [lineGeo, material(0xccb875)],
+    [curbGeo, p.paving],
+    [roadGeo, p.asphalt],
+    [lineGeo, surface("metal", 0xd3bd80)],
   ])
     if (geos.length) {
       const m = mesh(group, mergeGeometries(geos), mat);
       m.material.side = THREE.DoubleSide;
       geos.forEach((g) => g.dispose());
     }
-  const styles = [
-    createCurtainWallMaterial({ glassTint: 0x334f5a }),
-    createCurtainWallMaterial({ glassTint: 0x59706b }),
-    createPreWarBuildingMaterial({ stoneColor: 0xb6aaa0 }),
-    createPreWarBuildingMaterial({ stoneColor: 0x8b7770 }),
-  ];
-  // Merge nearby footprints into material batches; preserve exact footprint polygons for collisions.
-  const batches = new Map();
+  const batches = new Map(),
+    roofParts = [];
   let buildingCount = 0;
   for (const b of data.buildings) {
     if (b.ring.length < 4) continue;
@@ -176,171 +171,89 @@ export function buildSeattle(scene, data) {
     )
       continue;
     const y = heightAt(b.x, b.z),
-      g = extrude(b.ring, b.height, y),
-      style = b.height > 65 ? b.id % 2 : 2 + (b.id % 2);
-    const key = `${Math.floor(b.x / 450)}:${Math.floor(b.z / 450)}:${style}`;
+      footingY = Math.min(y, ...b.ring.map(([x, z]) => heightAt(x, z))),
+      g = extrude(b.ring, b.height + y - footingY, footingY),
+      style = b.height > 65 ? b.id % 3 : 3 + (b.id % 5);
+    const key = `${Math.floor(b.x / 600)}:${Math.floor(b.z / 600)}:${style}`;
     if (!batches.has(key)) batches.set(key, { style, geos: [] });
     batches.get(key).geos.push(g);
     const xs = b.ring.map((p) => p[0]),
-      zs = b.ring.map((p) => p[1]);
-    colliders.push({
-      minX: Math.min(...xs),
-      maxX: Math.max(...xs),
-      minZ: Math.min(...zs),
-      maxZ: Math.max(...zs),
-      minY: y,
-      maxY: y + b.height,
-      polygon: { outer: b.ring.map(([x, z]) => ({ x, z })), holes: [] },
-    });
+      zs = b.ring.map((p) => p[1]),
+      minX = Math.min(...xs),
+      maxX = Math.max(...xs),
+      minZ = Math.min(...zs),
+      maxZ = Math.max(...zs);
+    const polygon = { outer: b.ring.map(([x, z]) => ({ x, z })), holes: [] };
+    colliders.push({ minX, maxX, minZ, maxZ, minY: footingY, maxY: y + b.height, polygon });
     buildingCount++;
+    // Deterministic rooftop plant is cheap batched geometry, never a downloaded model.
+    if (b.id % 3 === 0 && b.height > 9 && maxX - minX > 14 && maxZ - minZ > 14) {
+      const w = Math.min(9, (maxX - minX) * 0.22),
+        d = Math.min(7, (maxZ - minZ) * 0.22);
+      if (
+        [
+          [-w, -d],
+          [w, -d],
+          [w, d],
+          [-w, d],
+        ].every(([x, z]) => polygonContains(polygon, b.x + x, b.z + z))
+      ) {
+        const penthouse = new THREE.BoxGeometry(w * 1.8, 2.2, d * 1.6);
+        penthouse.translate(b.x, y + b.height + 1.1, b.z);
+        roofParts.push(penthouse);
+        const vent = new THREE.BoxGeometry(w, 0.5, d);
+        vent.translate(b.x, y + b.height + 2.45, b.z);
+        roofParts.push(vent);
+      }
+    }
   }
   for (const { style, geos } of batches.values()) {
     mesh(group, mergeGeometries(geos), styles[style]);
     geos.forEach((g) => g.dispose());
   }
-  // Bespoke silhouettes, each placed at its real latitude and longitude.
-  for (const d of DESTINATIONS) {
-    const landmark = new THREE.Group();
-    landmark.name = d.name;
-    landmark.position.set(d.x, heightAt(d.x, d.z), d.z);
-    group.add(landmark);
-    if (d.id === "needle") {
-      const steel = material(0xd9ddd1, { metalness: 0.6, roughness: 0.35 });
-      for (let i = 0; i < 3; i++) {
-        const a = (i * Math.PI * 2) / 3,
-          b = a + 0.7;
-        beam(
-          landmark,
-          steel,
-          [Math.cos(a) * 26, 0, Math.sin(a) * 26],
-          [Math.cos(b) * 7, 110, Math.sin(b) * 7],
-          2.2,
-        );
-        beam(
-          landmark,
-          steel,
-          [Math.cos(b) * 7, 110, Math.sin(b) * 7],
-          [Math.cos(a) * 17, 151, Math.sin(a) * 17],
-          1.6,
-        );
-      }
-      cylinder(landmark, steel, 0, 146, 0, 21, 15, 5, 48);
-      cylinder(landmark, dark, 0, 151, 0, 20, 20, 6, 48);
-      cylinder(landmark, steel, 0, 157, 0, 21, 28, 4, 48);
-      cylinder(landmark, concrete, 0, 161, 0, 9, 22, 5, 48);
-      cylinder(landmark, steel, 0, 166, 0, 0.45, 3, 18, 24);
-      cylinder(landmark, green, 0, 0, 0, 37, 37, 3);
-      colliders.push({
-        minX: d.x - 9,
-        maxX: d.x + 9,
-        minZ: d.z - 9,
-        maxZ: d.z + 9,
-        minY: landmark.position.y,
-        maxY: landmark.position.y + 184,
-      });
-    } else if (d.id === "market") {
-      box(landmark, material(0xb4aa97), 0, 0, 0, 100, 16, 34);
-      box(landmark, material(0xa14234), 0, 16, 0, 104, 2, 38);
-      sign(landmark, "PUBLIC MARKET", 0, 24, 18, 57);
-      sign(landmark, "PIKE PLACE", 0, 13, 18, 35, "#335a46");
-      for (let x = -42; x < 48; x += 12) box(landmark, material(0x356850), x, 6, 20, 10, 0.7, 5);
-      const clock = mesh(landmark, new THREE.CircleGeometry(3.8, 32), white, 43, 23, 18);
-      clock.rotation.y = 0;
-      box(landmark, dark, 43, 23, 18.1, 0.18, 2.7, 0.12);
-      box(landmark, dark, 42, 22.9, 18.15, 2.3, 0.18, 0.1);
-    } else if (d.id === "wheel") {
-      // Pier 57 projects over the bay; the wheel rotates in its own local frame.
-      box(landmark, concrete, 0, -landmark.position.y + 3, 0, 40, 2, 100);
-      landmark.position.y = 5;
-      for (const x of [-10, 10]) beam(landmark, white, [x, 0, -5], [0, 29, 0], 1.2);
-      const spin = new THREE.Group();
-      spin.position.y = 29;
-      landmark.add(spin);
-      wheelParts.push(spin);
-      const rim = mesh(spin, new THREE.TorusGeometry(26, 0.45, 8, 64), white);
-      rim.rotation.y = 0;
-      for (let i = 0; i < 32; i++) {
-        const a = (i * Math.PI) / 16,
-          x = Math.cos(a) * 26,
-          y = Math.sin(a) * 26;
-        beam(spin, white, [0, 0, 0], [x, y, 0], 0.13);
-        box(spin, dark, x, y - 1.4, 0, 2.5, 2.8, 2.6);
-      }
-    } else if (d.id === "columbia") {
-      const mat = material(0x253c46, { metalness: 0.65, roughness: 0.3 });
-      box(landmark, mat, -17, 0, 0, 30, 284, 47);
-      box(landmark, mat, 6, 0, 0, 30, 265, 47);
-      box(landmark, mat, 28, 0, 0, 20, 245, 47);
-    } else if (d.id === "smith") {
-      box(landmark, concrete, 0, 0, 0, 35, 24, 35);
-      box(landmark, concrete, 0, 24, 0, 24, 105, 24);
-      cylinder(landmark, material(0x567b60), 0, 129, 0, 0, 16, 18, 4);
-    } else if (d.id === "spheres") {
-      for (const [x, r] of [
-        [-21, 14],
-        [0, 19],
-        [24, 13],
-      ]) {
-        const sphere = mesh(
-          landmark,
-          new THREE.SphereGeometry(r, 24, 16),
-          material(0x7ea6a2, { metalness: 0.4, roughness: 0.24 }),
-          x,
-          r * 0.68,
-          0,
-        );
-        const lines = new THREE.LineSegments(
-          new THREE.WireframeGeometry(sphere.geometry),
-          new THREE.LineBasicMaterial({ color: 0xc2d5cc }),
-        );
-        lines.position.copy(sphere.position);
-        landmark.add(lines);
-      }
-    } else if (d.id === "stadium") {
-      box(landmark, green, 0, 0, 0, 90, 1, 170);
-      for (const x of [-70, 70]) {
-        box(landmark, concrete, x, 0, 0, 40, 30, 210);
-        const roof = box(landmark, white, x, 36, 0, 58, 3, 220);
-        roof.rotation.z = x > 0 ? 0.18 : -0.18;
-      }
-      for (const z of [-105, 105]) box(landmark, concrete, 0, 0, z, 100, 22, 25);
-      sign(landmark, "LUMEN FIELD", 0, 29, 120, 70, "#234a55");
-    }
-    // Solid landmark envelopes use the same collision seam as OSM footprints.
-    if (!["needle", "wheel", "lake"].includes(d.id)) {
-      const w = d.id === "market" ? 53 : d.id === "stadium" ? 95 : d.id === "spheres" ? 39 : 34;
-      const depth = d.id === "stadium" ? 120 : d.id === "market" ? 20 : 30;
-      colliders.push({
-        minX: d.x - w,
-        maxX: d.x + w,
-        minZ: d.z - depth,
-        maxZ: d.z + depth,
-        minY: landmark.position.y,
-        maxY:
-          landmark.position.y +
-          (d.id === "columbia" ? 284 : d.id === "smith" ? 147 : d.id === "stadium" ? 40 : 32),
-      });
-    }
+  if (roofParts.length) {
+    mesh(group, mergeGeometries(roofParts), p.steel);
+    roofParts.forEach((g) => g.dispose());
   }
-  // Evergreen clusters, kept off roads and lots; one instanced draw for each part.
+  const landmarks = buildSeattleLandmarks(group, p);
+  colliders.push(...architecturalColliders(landmarks.landmarks));
+  // Four tapered branch tiers per tree, with one foliage and one trunk draw for the entire city.
   const sites = [];
   for (let i = 0; i < 850; i++) {
     const x = -1850 + ((i * 1543.17) % 3700),
       z = -2400 + ((i * 733.51) % 4600);
     if (x < shoreAt(z).westX + 20 || (z < -1930 && x > -100 && x < 1150)) continue;
+    if (
+      DESTINATIONS.some((d) =>
+        d.id === "stadium"
+          ? Math.abs(d.x - x) < 100 && Math.abs(d.z - z) < 135
+          : d.id !== "needle" && d.id !== "lake" && Math.hypot(d.x - x, d.z - z) < 55,
+      )
+    )
+      continue;
     if (data.buildings.some((b) => Math.abs(b.x - x) < 30 && Math.abs(b.z - z) < 30)) continue;
-    if (data.roads.some((r) => r.points.some((p) => Math.hypot(p[0] - x, p[1] - z) < 22))) continue;
+    if (data.roads.some((r) => r.points.some((q) => Math.hypot(q[0] - x, q[1] - z) < 22))) continue;
     sites.push([x, heightAt(x, z), z]);
   }
-  const tree = new THREE.InstancedMesh(new THREE.ConeGeometry(4, 15, 7), green, sites.length),
+  const tiers = [];
+  for (let j = 0; j < 4; j++) {
+    const geo = new THREE.ConeGeometry(4.2 - j * 0.8, 6.5 - j * 0.5, 9);
+    geo.translate(0, 5 + j * 2.7, 0);
+    tiers.push(geo);
+  }
+  const tree = new THREE.InstancedMesh(mergeGeometries(tiers), p.leaf, sites.length),
     trunks = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.5, 0.7, 6, 6),
-      material(0x655a44),
+      new THREE.CylinderGeometry(0.45, 0.7, 7, 6),
+      p.timber,
       sites.length,
     ),
     dummy = new THREE.Object3D();
+  tiers.forEach((g) => g.dispose());
   sites.forEach(([x, y, z], i) => {
-    dummy.position.set(x, y + 11, z);
+    const s = 0.75 + (i % 7) * 0.07;
+    dummy.position.set(x, y, z);
+    dummy.scale.set(s, s * (0.9 + (i % 4) * 0.08), s);
+    dummy.rotation.y = i * 2.4;
     dummy.updateMatrix();
     tree.setMatrixAt(i, dummy.matrix);
     dummy.position.y = y + 3;
@@ -349,35 +262,76 @@ export function buildSeattle(scene, data) {
   });
   group.add(tree, trunks);
   tree.castShadow = true;
-  // Washington State ferry silhouettes moving across Elliott Bay.
   for (let i = 0; i < 2; i++) {
     const f = new THREE.Group();
     group.add(f);
-    box(f, green, 0, 0, 0, 22, 4, 90);
-    box(f, white, 0, 4, 0, 24, 10, 78);
-    box(f, dark, 0, 14, 0, 20, 4, 45);
-    box(f, white, 0, 18, 0, 14, 4, 15);
+    box(f, p.dark, 0, 0, 0, 21, 3, 88);
+    box(f, p.limestone, 0, 3, 0, 23, 3, 82);
+    box(f, p.copper, 0, 6, 0, 23.2, 1.4, 82.2);
+    box(f, styles[0], 0, 7.4, 0, 21, 7, 72);
+    box(f, p.white, 0, 14.4, 0, 23, 1, 76);
+    for (const z of [-24, 24]) {
+      box(f, p.white, 0, 15.4, z, 12, 5, 13);
+      box(f, styles[0], 0, 17, z, 12.2, 2.5, 13.2);
+      box(f, p.dark, 0, 20, z, 5, 3, 4);
+    }
+    batchStatic(f);
     ferries.push(f);
   }
-  // Olympic Mountains to the west and Rainier to the southeast, deliberately stylized.
   for (let i = 0; i < 22; i++)
     mesh(
       group,
       new THREE.ConeGeometry(1700, 800 + ((i * 377) % 1200), 5),
-      material(0x778c95),
+      surface("stone", 0x778c95),
       -14000 - (i % 3) * 1100,
       250,
       -22000 + i * 2000,
     );
   const rainier = project(46.8523, -121.7603);
-  cylinder(group, material(0xb8c7cc), rainier.x, 0, rainier.z, 0, 6500, 4392, 10);
-  cylinder(group, white, rainier.x, 2700, rainier.z, 0, 2450, 1692, 10);
+  cylinder(group, surface("stone", 0xb8c7cc), rainier.x, 0, rainier.z, 0, 6500, 4392, 10);
+  cylinder(group, p.white, rainier.x, 2700, rainier.z, 0, 2450, 1692, 10);
   return {
     group,
     colliders,
     buildingCount,
+    visualStats() {
+      let meshes = 0,
+        triangles = 0;
+      const textures = new Set(),
+        materials = new Set();
+      group.traverse((o) => {
+        if (!o.isMesh) return;
+        meshes++;
+        triangles +=
+          ((o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3) *
+          (o.isInstancedMesh ? o.count : 1);
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          materials.add(m);
+          if (m.map) textures.add(m.map);
+        }
+      });
+      const wheel = landmarks.landmarks.find((g) => g.name === "Seattle Great Wheel"),
+        matrix = new THREE.Matrix4(),
+        q = new THREE.Quaternion(),
+        v = new THREE.Vector3(),
+        s = new THREE.Vector3();
+      wheel.userData.cabinMesh.getMatrixAt(0, matrix);
+      matrix.decompose(v, q, s);
+      return {
+        meshes,
+        triangles,
+        materials: materials.size,
+        generatedTextures: textures.size,
+        wheelCabins: wheel.userData.cabinCount,
+        wheelCabinRoll: new THREE.Euler().setFromQuaternion(q).z,
+        landmarks: landmarks.landmarks.map((g) => ({
+          name: g.name,
+          signature: g.userData.signature,
+        })),
+      };
+    },
     update(t) {
-      wheelParts.forEach((w) => (w.rotation.z = t * 0.025));
+      landmarks.update(t);
       ferries.forEach((f, i) => {
         f.position.set(
           -1100 - i * 1100 + Math.sin(t * 0.008 + i * 2) * 650,

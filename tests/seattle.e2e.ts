@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { openChrome, spawnServer, minimalEnv } from "@treycausey/kit/e2e";
+import { DESTINATIONS } from "../js/seattle-config.js";
 const root = new URL("..", import.meta.url).pathname;
 mkdirSync(`${root}/tmp`, { recursive: true });
 const server = await spawnServer({
@@ -15,7 +16,15 @@ const chrome = await openChrome({
 });
 const page = chrome.page,
   errors: string[] = [];
+const downloadedMedia: string[] = [];
+page.on("request", (request) => {
+  if (/\.(png|jpe?g|webp|ktx2?|gltf|glb|obj)(\?|$)/i.test(request.url()))
+    downloadedMedia.push(request.url());
+});
 page.on("pageerror", (e) => errors.push(e.message));
+page.on("requestfailed", (request) =>
+  errors.push(`${request.url()}: ${request.failure()?.errorText}`),
+);
 page.on("console", (m) => {
   if (m.type() === "error" || m.text().includes("GL_INVALID_OPERATION")) errors.push(m.text());
 });
@@ -24,9 +33,26 @@ try {
   await page.goto(server.url + (process.env.E2E_BACKEND === "webgl" ? "/?webgl" : ""), {
     waitUntil: "networkidle",
   });
-  await page.waitForSelector('body[data-ready="true"]', { timeout: 120000 });
+  await page.waitForFunction(
+    () =>
+      document.body.dataset.ready === "true" ||
+      document.getElementById("loading-status")?.textContent?.includes("could not start"),
+    null,
+    { timeout: 120000 },
+  );
+  assert.equal(
+    await page.locator("body").getAttribute("data-ready"),
+    "true",
+    await page.locator("#loading-status").innerText(),
+  );
   assert.equal(await page.title(), "Slop Seattle");
   assert.ok((await state()).buildings > 4000);
+  const visual = (await state()).visuals;
+  assert.equal(visual.wheelCabins, 42);
+  assert.ok(Math.abs(visual.wheelCabinRoll) < 1e-6);
+  assert.equal(visual.landmarks.length, 7);
+  assert.ok(visual.triangles < 3000000, `triangle budget: ${visual.triangles}`);
+  assert.ok(visual.meshes < 600, `draw object budget: ${visual.meshes}`);
   await page.screenshot({ path: `${root}/tmp/codex-seattle-desktop.png` });
   for (const mode of ["person", "car", "cyclist", "helicopter"]) {
     await page.locator(`button[data-mode="${mode}"]`).click();
@@ -66,7 +92,33 @@ try {
     await page.locator(`[data-destination="${destination}"]`).click();
     const p = await state();
     assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+    const destinationSpec = DESTINATIONS.find((d) => d.id === destination);
+    assert.ok(
+      Math.hypot(p.x - destinationSpec.arrival.x, p.z - destinationSpec.arrival.z) < 200,
+      `${destination}: arrival reaches its neighborhood`,
+    );
     await page.waitForFunction(() => document.getElementById("speed").textContent === "0");
+    assert.equal((await state()).camera, "landmark");
+    assert.equal(
+      (await state()).placeView.clear,
+      true,
+      `${destination}: view clears neighboring buildings`,
+    );
+    assert.equal(await page.locator("#location-label").innerText(), destinationSpec.name);
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    if (process.env.VISUAL_REVIEW === "1")
+      await page.screenshot({ path: `${root}/tmp/codex-detail-${destination}.png` });
+  }
+  if (process.env.VISUAL_REVIEW === "1") {
+    await page.locator("#places-button").click();
+    await page.locator('[data-destination="market"]').click();
+    await page.locator("#time-select").selectOption("midnight");
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    await page.screenshot({ path: `${root}/tmp/codex-detail-market-night.png` });
   }
   await page.locator("#time-select").selectOption("midnight");
   assert.equal((await state()).time, "midnight");
@@ -129,6 +181,7 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   assert.equal(overflow, false);
   assert.deepEqual(chrome.blocked, []);
+  assert.deepEqual(downloadedMedia, [], "no downloaded texture or model assets");
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
@@ -152,8 +205,23 @@ try {
         "mobile layout",
       ],
       screenshots: 5,
+      visuals: visual,
+      startupMs: restored.startupMs,
+      shaderCompileMs: restored.shaderCompileMs,
     }),
   );
+} catch (error) {
+  console.error(
+    JSON.stringify({
+      loading: await page
+        .locator("#loading-status")
+        .textContent()
+        .catch(() => null),
+      errors,
+    }),
+  );
+  await page.screenshot({ path: `${root}/tmp/codex-seattle-failure.png` }).catch(() => {});
+  throw error;
 } finally {
   await chrome.close();
   await server.stop();

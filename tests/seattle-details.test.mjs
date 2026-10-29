@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { LANDMARK_CATALOG } from '../js/seattle-config.js';
 import {
   detailIndex,
   planDetailTile,
@@ -11,6 +12,13 @@ import {
   DETAIL_KINDS,
 } from "../js/seattle-detail-plan.js";
 const data = JSON.parse(readFileSync(new URL("../js/seattle-data.json", import.meta.url)));
+test('a replaced footprint cannot leave floating rooftop detail at its landmark',()=>{
+  const site=LANDMARK_CATALOG.find(d=>d.id==='licton');
+  const building={id:98765,x:site.x+140,z:site.z+120,height:30,
+    ring:[[site.x-5,site.z-5],[site.x+285,site.z-5],[site.x+285,site.z+245],[site.x-5,site.z+245]]};
+  const index=detailIndex({buildings:[building],roads:[],parks:[]});
+  assert.ok([...index.values()].every(cell=>cell.buildings.length===0));
+});
 
 test("detail planning is deterministic, local, finite and capped across real neighborhoods", () => {
   const grid = detailIndex(data);

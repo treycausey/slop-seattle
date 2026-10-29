@@ -147,7 +147,7 @@ export function batchStatic(root) {
 }
 
 const shadowMaterials = new Map();
-// Visible, static opaque silhouettes share position-only draws in 1 km cells.
+// Visible, static opaque silhouettes share position-only draws in 2 km cells.
 // Animated, hidden and alpha-tested objects retain their original caster; sun cameras alone enable layer 1.
 export function batchShadows(root) {
   root.updateMatrixWorld(true);
@@ -161,7 +161,7 @@ export function batchShadows(root) {
       if (p.userData.dynamic || !p.visible) return;
     // Terrain and other existing large batches already cost one draw; retain their original caster.
     object.geometry.computeBoundingBox();
-    if(object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld).getSize(new THREE.Vector3()).length()>1500)return;
+    if(!object.userData.shadowBatch && object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld).getSize(new THREE.Vector3()).length()>1500)return;
     const side = object.material.shadowSide ??
       ({ [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide,
         [THREE.DoubleSide]: THREE.DoubleSide })[object.material.side];
@@ -173,7 +173,7 @@ export function batchShadows(root) {
     sources.push({side, positions});
     object.castShadow = false;
   });
-  const cell = 1024;
+  const cell = 2048;
   const key = (side, a, i) => `${side}:${Math.floor((a[i]+a[i+3]+a[i+6])/(3*cell))}:${Math.floor((a[i+2]+a[i+5]+a[i+8])/(3*cell))}`;
   for (const {side, positions} of sources) {
     const a = positions.attributes.position.array;

@@ -1,5 +1,7 @@
 import { WATERWAYS } from "./seattle-waterways.js";
 import { boundaryDistance } from "./seattle-boundary-index.js";
+import { LANDMARK_CATALOG } from "./seattle-landmark-catalog.js";
+export { LANDMARK_CATALOG };
 export { WATERWAYS };
 // Local metric frame: Pike Place Market is the origin, east = +x, south = +z.
 export const ORIGIN = { lat: 47.6097, lon: -122.3425 };
@@ -10,6 +12,7 @@ export function project(lat, lon) {
   };
 }
 export const CORE_BOUNDS = { minX: -2100, maxX: 2070, minZ: -2520, maxZ: 2300 };
+const catalogClearances=new Map();
 export const landmarkClearance = (id) =>
   ({
     stadium: 160,
@@ -22,7 +25,7 @@ export const landmarkClearance = (id) =>
     greenwood: 65,
     phinney: 45,
     gardens: 50,
-  })[id] ?? 35;
+  })[id] ?? (catalogClearances.get(id) ?? 35);
 export const BOUNDS = {
   minX: -5450,
   maxX: 3200,
@@ -398,6 +401,36 @@ export const DESTINATIONS = [
     -122.3344,
   ),
 ];
+// Coordinates come from the City's designated-landmark point layer. Dimensions are stylized.
+for (const d of LANDMARK_CATALOG) {
+  Object.assign(d, project(d.lat, d.lon));
+  d.clearance = Math.hypot(d.w, d.d) / 2 + 8;
+  catalogClearances.set(d.id,d.clearance);
+  DESTINATIONS.push({
+    ...d,
+    arrival: { x: d.arrival[0], z: d.arrival[1], heading: d.arrival[2] },
+  });
+}
+const exclusionCells=new Map(),exclusionCell=250;
+for(const d of DESTINATIONS.filter(d=>d.id!=='lake')){
+  const r=landmarkClearance(d.id),rx=Math.max(r,(d.w??0)/2+8),rz=Math.max(r,(d.d??0)/2+8);
+  for(let x=Math.floor((d.x-rx)/exclusionCell);x<=Math.floor((d.x+rx)/exclusionCell);x++)
+    for(let z=Math.floor((d.z-rz)/exclusionCell);z<=Math.floor((d.z+rz)/exclusionCell);z++){
+      const key=`${x}:${z}`;if(!exclusionCells.has(key))exclusionCells.set(key,[]);exclusionCells.get(key).push(d);
+    }
+}
+// Rendering, collision and nearby rooftop detail must agree on removed survey outlines.
+export function landmarkReplacesFootprint(b) {
+  const xs=b.ring.map(p=>p[0]),zs=b.ring.map(p=>p[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
+  for(let x=Math.floor(Math.min(minX,b.x)/exclusionCell);x<=Math.floor(Math.max(maxX,b.x)/exclusionCell);x++)
+    for(let z=Math.floor(Math.min(minZ,b.z)/exclusionCell);z<=Math.floor(Math.max(maxZ,b.z)/exclusionCell);z++)
+      for(const d of exclusionCells.get(`${x}:${z}`)??[]){
+        if((d.x-b.x)**2+(d.z-b.z)**2<landmarkClearance(d.id)**2)return true;
+        if(d.kind&&minX<d.x+d.w/2+8&&maxX>d.x-d.w/2-8&&minZ<d.z+d.d/2+8&&maxZ>d.z-d.d/2-8)return true;
+      }
+  return false;
+}
 export const WORLD = {
   bounds: BOUNDS,
   shoreAt,
@@ -429,3 +462,11 @@ export const LANDMARK_VIEWS = {
   phinney: { eye: [-85, 45, 110], target: [0, 12, 0] },
   gardens: { eye: [100, 65, 120], target: [-80, -10, -60] },
 };
+for (const d of LANDMARK_CATALOG) {
+  const radius = Math.max(d.w, d.d, d.h * 1.1);
+  LANDMARK_VIEWS[d.id] = {
+    eye: [-radius * .75, d.h * .8 + 30, radius * 1.4 + 45],
+    target: [0, d.h * .45, 0],
+    radius: Math.min(18, d.w * .2),
+  };
+}

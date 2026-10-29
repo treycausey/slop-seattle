@@ -84,6 +84,7 @@ async function init() {
     travelStatus.textContent = message;
     travelStatus.hidden = !message;
   };
+  let prepareDraws;
   const stream = createSeattleStream(
     city,
     data,
@@ -92,6 +93,7 @@ async function init() {
       controllerManager._colliderCells = null;
     },
     showTravelStatus,
+    root=>prepareDraws(root),
   );
   const updatePlayerMaterials = preparePlayerMaterials(
     scene,
@@ -99,6 +101,16 @@ async function init() {
     renderer,
   );
   const camera = new CameraSystem(renderer.domElement, controllerManager);
+  let preparationQueue=Promise.resolve();
+  prepareDraws=root=>{
+    const job=preparationQueue.then(async()=>{
+      const culling=[];root.traverse(o=>{if(o.isMesh){culling.push([o,o.frustumCulled]);o.frustumCulled=false;}});
+      try{await renderer.compileAsync(root,camera.camera,scene);}
+      finally{for(const [object,value]of culling)object.frustumCulled=value;}
+    });
+    preparationQueue=job.catch(()=>{});return job;
+  };
+  city.districts.setPrepare(prepareDraws);
   const touch = new TouchControls(controllerManager);
   let cameraIndex = 0;
   let selectedPlace = DESTINATIONS[0];
@@ -300,6 +312,7 @@ async function init() {
       );
     } catch {}
   });
+  let selectingPlace=false;
   for (const d of DESTINATIONS) {
     const button = document.createElement("button");
     button.type = "button";
@@ -310,17 +323,37 @@ async function init() {
     area.textContent = d.area;
     button.append(name, area);
     button.addEventListener("click", async () => {
+      if(selectingPlace)return;selectingPlace=true;
+      let preparingPlace=false;
+      try{
       if (!(await travelTo(d.arrival.x, d.arrival.z, d.arrival.heading)))
         return;
+      traveling=true;preparingPlace=true;
+      if(d.kind)showTravelStatus('Preparing landmark…');
+      try { await city.districts.ensure(d.id); }
+      catch(error){ showTravelStatus(error.message); return; }
+      showTravelStatus('');
       selectedPlace = d;
       selectedView = viewFor(d);
       cameraIndex = cameras.indexOf("landmark");
       $("location-label").textContent = d.name;
       $("camera-button").textContent = "Place · V";
       $("destinations").hidePopover();
+      }finally{if(preparingPlace)traveling=false;selectingPlace=false;}
     });
     $("destinations").appendChild(button);
   }
+  const filterPlaces=()=>{
+    const query=$("place-search").value.trim().toLocaleLowerCase();let count=0;
+    for(const button of $("destinations").querySelectorAll('button[data-destination]')){
+      button.hidden=!button.textContent.toLocaleLowerCase().includes(query);if(!button.hidden)count++;
+    }
+    $("place-count").textContent=`${count} ${count===1?'place':'places'}`;
+  };
+  $("place-search").addEventListener('input',filterPlaces);filterPlaces();
+  $("destinations").addEventListener('beforetoggle',event=>{
+    if(event.newState==='open'){$("place-search").value='';filterPlaces();}
+  });
   document
     .querySelectorAll("button[data-mode]")
     .forEach((b) =>
@@ -474,7 +507,7 @@ async function init() {
     if (!traveling) stream.update(controllerManager.getActiveEntity().position);
     city.update(elapsed, readyAt === null ? null : camera.currentPos);
     secrets?.update(controllerManager.getActiveEntity().position, elapsed);
-    updatePlayerMaterials();
+    updatePlayerMaterials(camera.currentPos,!!flight);
     distantSky.update();
     renderer.render(scene, camera.camera);
     frames++;

@@ -83,6 +83,10 @@ try {
         !window.slopSeattle.getState().streaming.busy &&
         window.slopSeattle.getState().visuals.details.tiles === 9,
     );
+    await page.waitForFunction(()=>{
+      const d=window.slopSeattle.getState().visuals.districts;
+      return !d||(!d.preparing&&d.pendingBuilds===0);
+    });
     if(process.env.PERF_MODE){
       await page.locator(`button[data-mode="${process.env.PERF_MODE}"]`).click();
       if(process.env.PERF_STATIONARY!=="1")await page.keyboard.down("w");
@@ -181,8 +185,12 @@ try {
         const snapshot = window.slopSeattle.getState(),
           drawing = r.getDrawingBufferSize(new (await import("three/webgpu")).Vector2()).toArray();
         const render = { ...r.info.render };
+        const draws={};
+        const direct=r._renderObjectDirect;
+        r._renderObjectDirect=function(object,material,...args){const key=(object.name||object.geometry.type)+':'+object.parent?.name+':'+object.parent?.parent?.name+':'+material.name+':'+material.type;draws[key]=(draws[key]??0)+1;return direct.call(this,object,material,...args);};
+        frame();r._renderObjectDirect=direct;
         resume();
-        return { id, normal, variants, drawing, snapshot, render };
+        return { id, normal, variants, drawing, snapshot, render, draws };
       },
       {
         id,

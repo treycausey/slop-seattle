@@ -31,7 +31,7 @@ test("offline Seattle snapshot has real footprints, named roads, finite heights 
   }
 });
 test("every Seattle destination can reach a real road inside the playable coast", () => {
-  assert.equal(new Set(DESTINATIONS.map((d) => d.id)).size, 19);
+  assert.equal(new Set(DESTINATIONS.map((d) => d.id)).size, 95);
   const north = JSON.parse(
     gunzipSync(
       readFileSync(

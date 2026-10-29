@@ -21,7 +21,7 @@ export async function compressedJSON(file, signal) {
   ).json();
 }
 // One decoded/building job in flight, four resident regions, no unbounded data or GPU cache.
-export function createSeattleStream(city, data, onChange, onStatus) {
+export function createSeattleStream(city, data, onChange, onStatus, prepare=async()=>{}) {
   const core = {
       buildings: data.buildings,
       roads: data.roads,
@@ -124,10 +124,15 @@ export function createSeattleStream(city, data, onChange, onStatus) {
           });
         lastBuildMs = Math.round(performance.now() - started);
         maxBuildMs = Math.max(maxBuildMs, lastBuildMs);
+        // Shader preparation must finish before newly streamed geometry reaches the render loop.
+        part.group.removeFromParent();
+        try { await prepare(part.group); }
+        catch(e){part.dispose();throw e;}
         if (!desired.some((t) => t.id === tile.id)) {
           part.dispose();
           continue;
         }
+        city.group.add(part.group);
         regions.set(tile.id, { tile, data: chunk, city: part });
         publish();
         error = null;

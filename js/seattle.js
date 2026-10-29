@@ -19,12 +19,13 @@ import { resolveLandmarkView } from "./seattle-viewpoints.js";
 import { createSeattleStream } from "./seattle-stream.js";
 
 const $ = (id) => document.getElementById(id);
-const modes = ["person", "car", "cyclist", "helicopter"];
+const modes = ["person", "car", "cyclist", "helicopter", "blueangels"];
 const modeNames = {
   person: "On foot",
   car: "Driving",
   cyclist: "Cycling",
   helicopter: "Helicopter",
+  blueangels: "Blue Angels",
 };
 const cameras = ["chase", "action", "pov", "skyline", "landmark"];
 
@@ -33,6 +34,10 @@ async function init() {
   let readyAt = null,
     shaderCompileMs = null;
   let secrets = null;
+  let flight = null,
+    modeRequest = 0;
+  const currentMode = () =>
+    flight ? "blueangels" : controllerManager.activeMode;
   const status = $("loading-status");
   const response = await fetch(new URL("./seattle-data.json", import.meta.url));
   if (!response.ok)
@@ -119,7 +124,9 @@ async function init() {
     onCycleCamera: cycleCamera,
     onCycleMode: (step) =>
       selectMode(
-        modes[(modes.indexOf(controllerManager.activeMode) + step + 4) % 4],
+        modes[
+          (modes.indexOf(currentMode()) + step + modes.length) % modes.length
+        ],
       ),
     onToggleMap: () => (map.dialog.open ? map.dialog.close() : map.open()),
     onCloseMap: () => map.dialog.close(),
@@ -150,6 +157,7 @@ async function init() {
   function teleport(x, z, heading = Math.PI) {
     document.body.classList.remove("secret-focus");
     controllerManager.teleportActiveTo(x, z, heading);
+    flight?.reset();
     touch.reset();
     gamepad.reset();
     camera.resetForTeleport();
@@ -157,15 +165,45 @@ async function init() {
     $("camera-button").textContent = "Camera · V";
     map.draw();
   }
-  function selectMode(mode) {
+  async function selectMode(mode) {
+    const request = ++modeRequest;
+    let createFlight;
+    if (mode === "blueangels") {
+      try {
+        createFlight = (await import("./seattle-blue.js")).createBlueAngels;
+      } catch {
+        if (request === modeRequest)
+          showTravelStatus("Blue Angels could not load. Reload to retry.");
+        return;
+      }
+      if (request !== modeRequest) return;
+    }
     const p = controllerManager.getActiveEntity().position.clone();
-    controllerManager.setMode(mode);
-    touch.setMode(mode);
+    flight?.dispose();
+    flight = null;
+    controllerManager.setMode(mode === "blueangels" ? "helicopter" : mode);
+    touch.setMode(controllerManager.activeMode);
     gamepad.reset();
     const road = nearestRoad(data, p.x, p.z);
     teleport(road.x, road.z, road.heading);
     if (mode === "helicopter")
-      controllerManager.getActiveEntity().position.y = Math.max(p.y, 150);
+      controllerManager.getActiveEntity().position.y = Math.max(
+        150,
+        Math.min(380, p.y),
+      );
+    if (createFlight) {
+      controllerManager.getActiveEntity().position.y = Math.max(
+        350,
+        Math.min(1800, p.y),
+      );
+      flight = createFlight(scene, controllerManager);
+    }
+    $("blue-smoke").hidden = !flight;
+    $("blue-smoke").setAttribute(
+      "aria-pressed",
+      String(flight?.stats().smoke ?? false),
+    );
+    camera.resetForTeleport();
     renderMode(mode);
   }
   function renderMode(mode) {
@@ -176,14 +214,16 @@ async function init() {
       );
     $("mode-label").textContent = modeNames[mode];
     $("control-hint").innerHTML =
-      mode === "helicopter"
-        ? "WASD move · E / Q altitude<br>Drag to orbit · Scroll to zoom"
-        : "WASD move · 1–4 travel mode<br>Drag to orbit · Scroll to zoom";
+      mode === "blueangels"
+        ? "W / S speed · A / D turn · E / Q climb<br>B smoke · V camera · 1–5 travel mode"
+        : mode === "helicopter"
+          ? "WASD move · E / Q altitude<br>Drag to orbit · Scroll to zoom"
+          : "WASD move · 1–5 travel mode<br>Drag to orbit · Scroll to zoom";
     document.body.dataset.mode = mode;
   }
   // Separate parked entities so mode changes never spawn on top of another player model.
   const start = DESTINATIONS[0];
-  for (const [i, mode] of modes.entries()) {
+  for (const [i, mode] of modes.slice(0, 4).entries()) {
     controllerManager.setMode(mode);
     const road = nearestRoad(
       data,
@@ -217,18 +257,26 @@ async function init() {
       saved.z >= BOUNDS.minZ - 6000 &&
       saved.z <= BOUNDS.maxZ + 6000
     ) {
-      controllerManager.setMode(saved.mode);
+      if (saved.mode === "blueangels") await selectMode(saved.mode);
+      else controllerManager.setMode(saved.mode);
       await stream.ensure(saved.x, saved.z);
       teleport(saved.x, saved.z, saved.heading);
-      if (saved.mode === "helicopter")
+      if (["helicopter", "blueangels"].includes(saved.mode))
         controllerManager.teleportActiveTo(
           saved.x,
           saved.z,
           saved.heading,
           saved.y,
         );
-      touch.setMode(saved.mode);
-      renderMode(saved.mode);
+      if (flight) {
+        controllerManager.getActiveEntity().position.y = Math.max(
+          350,
+          Math.min(1800, saved.y),
+        );
+        flight.reset();
+      }
+      touch.setMode(controllerManager.activeMode);
+      renderMode(currentMode());
     }
   } catch {
     /* Storage is optional. */
@@ -239,7 +287,7 @@ async function init() {
       localStorage.setItem(
         "slop-seattle-player-v1",
         JSON.stringify({
-          mode: controllerManager.activeMode,
+          mode: currentMode(),
           x: p.position.x,
           y: p.position.y,
           z: p.position.z,
@@ -275,6 +323,14 @@ async function init() {
       b.addEventListener("click", () => selectMode(b.dataset.mode)),
     );
   $("camera-button").addEventListener("click", cycleCamera);
+  function toggleSmoke() {
+    if (flight)
+      $("blue-smoke").setAttribute(
+        "aria-pressed",
+        String(flight.toggleSmoke()),
+      );
+  }
+  $("blue-smoke").addEventListener("click", toggleSmoke);
   $("map-button").addEventListener("click", () => map.open());
   $("radar").addEventListener("click", () => map.open());
   $("radar").addEventListener("keydown", (e) => {
@@ -315,7 +371,8 @@ async function init() {
       return;
     }
     if (map.dialog.open || $("help").open || secrets?.isOpen()) return;
-    if (/^[1-4]$/.test(e.key)) selectMode(modes[Number(e.key) - 1]);
+    if (/^[1-5]$/.test(e.key)) selectMode(modes[Number(e.key) - 1]);
+    if (e.key.toLowerCase() === "b") toggleSmoke();
     if (e.key.toLowerCase() === "v") cycleCamera();
     if (
       ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)
@@ -333,7 +390,8 @@ async function init() {
       const e = controllerManager.getActiveEntity();
       return {
         ready: document.body.dataset.ready === "true",
-        mode: controllerManager.activeMode,
+        mode: currentMode(),
+        blueAngels: flight?.stats() ?? { active: false },
         x: e.position.x,
         y: e.position.y,
         z: e.position.z,
@@ -374,7 +432,10 @@ async function init() {
     touch.setEnabled(!modal);
     gamepad.update(dt);
     if (!modal && !traveling) {
-      controllerManager.update(dt, elapsed);
+      if (flight) {
+        if (cameras[cameraIndex] !== "landmark")
+          flight.update(dt, controllerManager.keys);
+      } else controllerManager.update(dt, elapsed);
     } else controllerManager.resetInput();
     if (
       cameras[cameraIndex] === "landmark" &&
@@ -386,6 +447,7 @@ async function init() {
       $("camera-button").textContent = "Camera · V";
     }
     camera.update(dt, elapsed);
+    flight?.camera(camera, cameras[cameraIndex], dt);
     if (cameras[cameraIndex] === "landmark") {
       const { eye, target } = selectedView;
       camera.currentPos.set(...eye);

@@ -2,6 +2,26 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Blue Angels mode — 2026-10-29
+
+A fifth travel mode adds four blue-and-gold procedural jets in a diamond. It uses existing keyboard, touch and standard-gamepad input, with separate arcade flight/camera code. The original controllers, player models and Manhattan camera module are unchanged. Model geometry is instanced by material; smoke uses a fixed 64-sample ring per jet and one ribbon draw. Only mode selection/restoration imports the feature; mode exit disposes it.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Select Blue / press 5 | Four recognizable jets, forward flight, blue/gold livery and diamond framing | Optional import failure preserves the previous travel mode and gives a reload instruction | Native/WebGL selection, rendering, injected 503 and successful reload | Passed |
+| Fly with keyboard, gamepad or touch | Speed, heading, bank and altitude respond; 1–5 mode cycling wraps correctly | Terrain/building clearance, world-edge return and capped frame delta keep movement bounded | Pure flight contracts, real keyboard/touch and emulated standard pad checks on both backends | Passed |
+| Toggle B / Smoke and change camera | Bounded trails, chase/side/forward views; all four jets fit the chase composition | Reduced motion starts with smoke off and suppresses visual bank | 64-sample cap, five draw calls, 12,240 trail bytes; inspected desktop/mobile captures | Passed |
+| Open dialogs, choose Places, reload | Dialogs and Places views pause flight; saved mode/altitude restores | Closing dialogs clears held inputs; switching modes restores the original helicopter | Both flight browser suites plus the native 19-Place application suite, including old modes, map, saves and touch | Passed |
+| Repeatedly enter/exit mode | No accumulating event geometry, textures, instance buffers or heap | Shared resources are disposed on every exit; no downloaded media | Four cycles/backend measured at the same ready landmark, with stable warm GPU counts and bounded heap | Passed |
+| Preserve loading and size | No jet download on ordinary boot; explicit 64 KiB source ceiling | Discovery and regional caps remain unchanged | 63,217 gzip Seattle JS bytes (+4,279); source budget and browser request assertions | Passed |
+| Publish exact tested version | Public Blue mode, smoke and touch work | Compare served bytes and run public controls | Pending publication | Pending |
+
+The first app check hit the already tracked local module-download connection reset ([issue 2](https://github.com/treycausey/slop-seattle/issues/2)). The app browser harness now uses the same 128-connection test-server queue as the discovery tours. A memory assertion initially compared different streamed neighborhoods; it now returns to the same ready Space Needle view before each sample. Visual review framed the formation centroid and moved the mobile speed card above the action, hiding its radar while keeping the map button available.
+
+Final native/WebGL flight runs passed controls, mode wrap, smoke saturation, paused dialogs, all camera options, four entry/exit cycles, save/restore, touch climb, reduced motion and injected optional-module failure/reload. After warming, reported whole-scene GPU allocation held at 117,255,977 / 78,587,342 bytes, with unchanged geometry/texture/program/buffer counts. Collected heap changed by +109,444 / -21,620 bytes from the second to fourth sample. Native's first extra detail bin allocated 448 bytes of bindings, then remained stable. No new texture or model requests occur. Browser touch/gamepad checks do not establish physical-device acceptance.
+
+A focused Columbia Center regression caught stale altitude-clearance timing after teleport: holding descend dropped from 426.6 m to 382.9 m while using the previous neighborhood's cache. Reset now refreshes both clearance and its timer, and the same flow holds 426.6 m; both full flight suites include that regression. Terrain queries run at 5 Hz with lookahead, while smoke storage stays fixed.
+
 ## Thirty discoveries — 2026-10-29
 
 Adds four Seahawks scenes (12 flag, spiral, hawk and a small visual Beast Quake), four grunge tributes (guitar/amps, flannel, vinyl and spoons), and seven local oddities (Toe Truck, pink elephant, geoduck, banana slug, pinball, Interurban passengers and visiting Hat 'n' Boots). They reuse the existing deferred discovery loader, local trigger grid and three-effect cap. Three shared palette colors are added, with no new textures, images, models or audio. Small scenes find a nearby clear stage at activation so a neighboring footprint cannot enclose the camera target.

@@ -2,6 +2,22 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Flannel and Beast Mode avatars — 2026-10-29
+
+Walking and cycling share a saved Avatar choice: Flannel (red generated plaid, jeans, long hair) or Beast Mode (navy/lime hawk mascot, 24 jersey, beak, crest, broader build and stronger walking arm swing). Existing planted-foot and bicycle pedaling rigs remain intact. Clothes and jersey digits use filtered shader patterns; two head attachments share geometry/materials. Looks switch through one uniform, with no texture/model downloads or per-switch geometry construction. Each costume owns its headwear, replacing the stock helmet to avoid overlapping surfaces.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Choose Avatar while walking/cycling | Both distinct looks apply immediately and carry between modes | Only valid saved values restore; default is Flannel | Native/WebGL tours, front/rear captures and reload | Passed |
+| Walk and pedal after choosing | Head follows the rig; hands/feet retain their animation; keyboard control resumes | Selector releases focus after selection | Focused-selector movement regression failed before blur, passed after; four look/mode movement checks per backend | Passed |
+| Orbit the character | Front and rear views keep the character visible | Seattle chase camera targets the character rather than looking beyond it | Front-orbit projection regression reproduced a head behind the camera; rendered front views and clip-space assertions now pass | Passed |
+| Change looks thirty times | Fixed geometry, materials, textures, shaders and GPU buffers | Only uniform values and existing visibility/pose properties change | Three batches of ten toggles per backend, exact warm GPU counter comparisons and collected heap | Passed |
+| Use the mobile control | Selector fits, remains usable and is hidden for other travel modes | Native labeled select; no extra top toolbar | 390×844 capture, overflow, hide/show and save/restore checks | Passed |
+| Preserve combined release | Performance pass, previous modes and nineteen Places remain available | Merge the shipped performance release before final validation | Baseline main 0797384; 232 permanent tests, both avatar suites and native nineteen-Place app suite pass. Source 72,700 gzip bytes (+3,088), under explicit 72 KiB ceiling | Passed |
+| Publish exact tested version | Public Avatar control changes both walking/cycling looks | Compare served modules and use real public controls | Pending publication | Pending |
+
+After thirty switches, whole-scene GPU allocation stayed at exactly 97,857,192 / 55,220,882 reported bytes on native/WebGL. Geometry, texture, program and uniform-buffer counts stayed identical between warm samples; collected heap changed by -448 / +26,972 bytes between the second and third sample. Both look/mode combinations were visually inspected, including front views. These are browser checks on this Mac, not physical-phone acceptance.
+
 ## Deeper street detail and performance — 2026-10-29
 
 The selected tradeoff keeps full nearby detail and simplifies distant shading. Fire escapes add three landings, posts, handrails and rung ladders; storefronts gain frames and planted window boxes; tree guards, slotted drains, bin openings and car lights/bumpers/mirrors add smaller scale. No geometry, antialiasing or drawing-resolution reduction is used to obtain the measurements below. Distant background clouds reuse the environment bake and refresh with lighting presets.

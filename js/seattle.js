@@ -396,6 +396,7 @@ async function init() {
         ready: document.body.dataset.ready === "true",
         mode: currentMode(),
         blueAngels: flight?.stats() ?? { active: false },
+        avatar: updatePlayerMaterials.avatarStats(camera.camera),
         x: e.position.x,
         y: e.position.y,
         z: e.position.z,
@@ -467,6 +468,7 @@ async function init() {
         camera.camera.position.y,
         heightAt(camera.camera.position.x, camera.camera.position.z) + 1,
       );
+      updatePlayerMaterials.frameAvatar(camera);
     }
     lighting.update(camera.currentPos);
     if (!traveling) stream.update(controllerManager.getActiveEntity().position);

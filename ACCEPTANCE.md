@@ -2,6 +2,41 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Fivefold landmarks and performance — 2026-10-29
+
+Baseline: `f53bfe6`. Places increase from 19 to 95; permanent modeled sites increase from 17 to 93, with the two landscape views preserved. Existing canal bridges and all 31 discoveries remain separate. The [catalog](LANDMARKS.md) records the 76 City-sourced additions and their visual signatures. A shared instance layer supplies distant silhouettes; the detailed module imports after the first interactive frame, builds at most one site per frame, and retains at most eight. All resident sites share material batches. Detached replacements compile asynchronously before appearing; one shared queue serves at most one landmark replacement and one geographic job. Eviction releases geometry and render-object bindings, while palette materials remain shared.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Search and visit all Places | 95 unique destinations, real street arrivals and composed views | Neighborhood load failure preserves the current position; retry remains available | Native and WebGL full 95-Place application tours, movement, time, atlas, saves and touch pass | Passed |
+| Recognize the additions | Varied architectural families, individual dimensions, named geometric signs and characteristic structures | Stylized recipes rather than exact building replicas | City landmark numbers/coordinates, 24 recipe families, desktop/mobile captures; chimneys and spring refined after visual inspection | Passed |
+| Load and revisit | At most eight detailed sites, four geographic regions and the original nine-tile detail pool | Failed optional module remains coarse; selected Place gives “Reload to retry”; no retry loop | Focused native/WebGL tours exercise failure/reload, 36 visits, pool bounds and collected GPU/heap samples; exact warm GPU allocations across three rounds | Passed |
+| Cull offscreen inactive rigs | Only visible rigs pose/upload; active walking and cycling restore immediately | Blue Angels retains its helicopter hiding; nearby ambient rigs remain visible | Focused browser rig-pose, visibility, movement and Blue transition assertions; both avatar and flight suites | Passed |
+| Travel without synchronous shader stalls | Region/model shader work yields before visible activation; lighting graph stays stable | Geometry culling preserves vehicle light parents; zero-output daytime lamps are excluded before initial compilation | Profile separated 1–5 ms modeling from synchronous material builds. New north regression failed at 329 ms before the fix and passes after with zero observed tasks over 50 ms across 16 visits | Passed |
+| Replace surveyed outlines | No duplicate footprint collision or floating rooftop detail around a new model | One spatial replacement query is shared by rendering and detail planning | Full catalog equivalence cases and reproduced floating-detail regression fail before the fix and pass after | Passed |
+| Improve rendering performance by at least 25% | At least 1.25× headroom at the same resolution, antialiasing, nearby shading and shadow tiles | Report workload/backend limits explicitly | Isolated six-view WebGPU comparison below: 1.45× headroom (44.9% faster, 31.0% less frame work); WebGL 7.4% less frame work | Passed for measured WebGPU tour |
+| Preserve appearance and controls | Nearby material pixels, shadows, wheel, Troll, old discoveries, avatars and flight remain correct | Existing fallback and bounded lifecycles retained | Both rendering comparison suites, full 95-Place app tours, both 62-discovery-visit tours, both avatar and both Blue Angels suites pass | Passed |
+| Preserve small procedural delivery | No downloaded art, fonts, models, per-building textures or changed engine pin | Explicit 90 KiB ceiling, +16 KiB over previous ceiling | Seattle JS 91,479 gzip bytes versus 74,403 baseline (+17,076); 236 permanent tests and browser request assertions | Passed |
+| Publish exact tested version | Main pushed, Pages successful, served bytes and real controls verified | Inspect public release after deployment | Pending | Pending |
+
+### Rendering comparison
+
+Chrome on this M2 Max Mac, same pinned engine, Golden hour, 1920×1080 viewport, requested DPR 2 capped by the unchanged app to 1.5 (2880×1620 drawing buffer). Five batches of 120 complete update/render steps per view; GPU work is fenced. Camera moves during each batch. The mean gives each of the same six views equal weight. Baseline is a clean archived `f53bfe6` runtime served by the same harness. Versions run sequentially in isolated browsers; no profiler runs in these final measurements. The harness waits for both geographic loading and all desired detailed sites/shader preparation to settle. This measures rendering headroom, not refresh-capped FPS, cold startup, phone performance or every possible view.
+
+| WebGPU view | Baseline ms/frame | Expanded ms/frame |
+| --- | ---: | ---: |
+| Space Needle | 1.728 | 1.213 |
+| Pike Place Market | 2.189 | 1.461 |
+| Columbia Center | 1.792 | 1.023 |
+| Greenwood | 1.621 | 1.468 |
+| Gas Works | 1.722 | 1.100 |
+| Ballard Locks | 1.451 | 0.985 |
+| **Tour mean** | **1.751** | **1.208** |
+
+The final tour provides **1.45× rendering headroom (44.9% faster, 31.0% less frame work)**. Previous candidates, before the final light-hierarchy and asynchronous preparation fixes, measured 22–27% less time per frame; the final figures above take precedence. All six baseline/candidate camera eyes and targets match exactly. Greenwood gains less than downtown. The final WebGL comparison measured 1.143 → 1.058 ms/frame (1.08× headroom, 7.4% less cost); the 25% result is not a claim about the WebGL fallback. Raw reports are `perf-landmark-control-*` in the ignored archived baseline's `tmp/` and `perf-landmark-delivery-*` in this checkout's `tmp/`, each including source fingerprint, hardware, drawing dimensions and per-batch samples. The final runtime fingerprint is `a371f473e58cd5c98293f80ee74e7dc654cda158b862a31a5dc0d377007b6647`.
+
+Focused architecture tours held total reported GPU allocation at exactly 128,825,452 bytes on WebGPU and 75,674,713 on WebGL across three rounds each. Warm second-to-third collected heap grew by only 100,280 / 104,696 bytes. The final six-site resident sample used 1,387,200 / 1,377,408 bytes of retained geometry arrays, with 10 / 8 packed draws including native shadow proxies; all 76 distant silhouettes use eleven instanced material draws. Temporary replacement geometry is included in the browser's 12 MiB landmark-array cap. Browser memory and touch evidence is from this Mac, not a physical-phone acceptance claim.
+
 ## Rainier eruption — 2026-10-29
 
 Discovery 31 adds a 14-second Rainier eruption, triggered by F/tap at the overlook's “The mountain is rumbling…” clue. Lava tubes follow the visible mountain flank, with 28 instanced ash puffs and 18 ballistic cinders. Four draw calls share the mountain's camera-relative horizon projection. The effect remains visible after leaving the trigger area, expires and disposes its own geometry/materials, and uses a 24-second cooldown. The existing three-effect cap still applies. Reduced motion holds a static eruption; no audio, camera shake, downloads or permanent mountain changes are added.

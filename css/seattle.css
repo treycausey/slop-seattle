@@ -227,6 +227,9 @@ h1 {
 #destinations button:hover {
   background: #2b454b;
 }
+#destinations button[hidden] { display: none; }
+#place-search { width: 100%; box-sizing: border-box; margin: 0 0 6px; padding: 10px; border: 1px solid #adc2bb55; border-radius: 8px; background: #14292f; color: inherit; font: inherit; }
+#place-count { margin: 4px 8px 8px; font-size: 12px; color: #adc2bb; }
 #destinations small {
   display: block;
   font-size: 11px;

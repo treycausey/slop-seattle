@@ -67,7 +67,7 @@ try {
   const visual = (await state()).visuals;
   assert.equal(visual.wheelCabins, 42);
   assert.ok(Math.abs(visual.wheelCabinRoll) < 1e-6);
-  assert.equal(visual.landmarks.length, 17);
+  assert.equal(visual.landmarks.length, 93);
   assert.ok(visual.triangles < 3000000, `triangle budget: ${visual.triangles}`);
   assert.ok(visual.meshes < 600, `draw object budget: ${visual.meshes}`);
   await page.screenshot({ path: `${root}/tmp/codex-seattle-desktop.png` });
@@ -327,7 +327,7 @@ try {
         "4 modes",
         "keyboard movement",
         "helicopter climb",
-        "19 destinations",
+        "95 destinations",
         "time presets",
         "map search",
         "map travel",

@@ -8,7 +8,7 @@ import {
   viewSegmentBlocked,
 } from "../js/seattle-viewpoints.js";
 
-test("procedural Seattle with Rainier eruption stays below 74 KiB gzip, without texture or model downloads", () => {
+test("procedural Seattle with 95 Places stays below 90 KiB gzip, without texture or model downloads", () => {
   const directory = new URL("../js/", import.meta.url),
     names = readdirSync(directory).filter((n) => /^seattle.*\.js$/.test(n));
   let bytes = 0;
@@ -21,7 +21,7 @@ test("procedural Seattle with Rainier eruption stays below 74 KiB gzip, without 
     );
   }
   assert.ok(
-    bytes < 74 * 1024,
+    bytes < 90 * 1024,
     `Seattle JS budget exceeded: ${bytes} compressed bytes`,
   );
   console.log(

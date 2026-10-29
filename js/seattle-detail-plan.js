@@ -1,4 +1,4 @@
-import { heightAt, DESTINATIONS,landmarkClearance } from "./seattle-config.js";
+import { heightAt, landmarkReplacesFootprint } from "./seattle-config.js";
 
 export const TILE_SIZE = 160,
   TILE_LIMIT = 9,
@@ -33,15 +33,7 @@ export function detailIndex(data) {
       }
   };
   for (const b of data.buildings) {
-    if (
-      DESTINATIONS.some(
-        (d) =>
-          d.id !== "lake" &&
-          Math.hypot(d.x - b.x, d.z - b.z) <
-            landmarkClearance(d.id),
-      )
-    )
-      continue;
+    if (landmarkReplacesFootprint(b)) continue;
     add(
       "buildings",
       b,

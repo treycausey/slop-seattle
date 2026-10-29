@@ -9,8 +9,8 @@ import {
   project,
   isLand,
   inRing,
-  landmarkClearance,
   WATERWAYS,
+  landmarkReplacesFootprint,
 } from "./seattle-config.js";
 import { polygonContains } from "./building-collision.js";
 import {
@@ -26,6 +26,7 @@ import { pitchedRoofPositions } from "./seattle-roofs.js";
 import { createRainier } from "./seattle-rainier.js";
 import { buildingBuffers } from "./seattle-building-buffers.js";
 import { createDistantFacades, applyFacadeLOD } from "./seattle-facade-lod.js";
+import { createDistrictLandmarks } from "./seattle-landmark-stream.js";
 
 function extrude(ring, height, base = 0, holes = []) {
   const parts=buildingBuffers(ring,holes,height,base,(outer,inner)=>THREE.ShapeUtils.triangulateShape(outer.map(([x,z])=>new THREE.Vector2(x,z)),inner.map(r=>r.map(([x,z])=>new THREE.Vector2(x,z)))));
@@ -89,6 +90,13 @@ function architecturalColliders(landmarks) {
   };
   for (const g of landmarks) {
     const id = DESTINATIONS.find((d) => d.name === g.name).id;
+    const catalog = DESTINATIONS.find(d => d.id === id && d.kind);
+    if(catalog && !['spring','terrace','railbridge','courtyard','clock'].includes(catalog.kind))
+      add(g,0,0,catalog.w,catalog.d,0,catalog.h);
+    if(catalog?.kind==='courtyard'){
+      for(const side of [-1,1])add(g,side*catalog.w*.38,0,catalog.w*.24,catalog.d,0,catalog.h);
+      add(g,0,-catalog.d*.38,catalog.w,catalog.d*.24,0,catalog.h);
+    }
     if (id === "needle") {
       add(g, 0, 0, 39, 39, 0, 5);
       add(g, 0, 0, 6, 6, 5, 141);
@@ -226,6 +234,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
       lake.name = water.name;
     }
   }
+  const parkGeometry = [];
   for (const park of data.parks) {
     if (park.ring.length < 4) continue;
     const bounds = chunk ? data.bounds : CORE_BOUNDS,
@@ -264,9 +273,13 @@ function* buildSeattleSteps(scene, data, options = {}) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
       geo.computeVertexNormals();
-      mesh(group, geo, p.grass);
+      parkGeometry.push(geo);
     }
     if (chunk) yield;
+  }
+  if (parkGeometry.length) {
+    mesh(group, mergeGeometries(parkGeometry), p.grass);
+    parkGeometry.forEach(g => g.dispose());
   }
   const roadGeo = [],
     curbGeo = [],
@@ -294,19 +307,12 @@ function* buildSeattleSteps(scene, data, options = {}) {
   let buildingCount = 0;
   for (const b of data.buildings) {
     if (b.ring.length < 4) continue;
-    if (
-      DESTINATIONS.some(
-        (d) =>
-          d.id !== "lake" &&
-          Math.hypot(d.x - b.x, d.z - b.z) < landmarkClearance(d.id),
-      )
-    )
-      continue;
+    if (landmarkReplacesFootprint(b)) continue;
     const y = heightAt(b.x, b.z),
       footingY = Math.min(y, ...b.ring.map(([x, z]) => heightAt(x, z))),
       surfaces = extrude(b.ring, b.height + y - footingY, footingY, b.holes),
       style = b.height > 65 ? b.id % 3 : 3 + (b.id % 5);
-    const cell = `${Math.floor(b.x / 600)}:${Math.floor(b.z / 600)}`,
+    const cell = `${Math.floor(b.x / 2400)}:${Math.floor(b.z / 2400)}`,
       key = `${cell}:${style}`;
     if (!batches.has(key)) batches.set(key, { style, geos: [] });
     batches.get(key).geos.push(surfaces.walls);
@@ -383,7 +389,8 @@ function* buildSeattleSteps(scene, data, options = {}) {
     }
   }
   for (const { style, geos } of batches.values()) {
-    applyFacadeLOD(mesh(group, mergeGeometries(geos), styles[style]), distantStyles[style]);
+    const walls=mesh(group, mergeGeometries(geos), styles[style]);walls.userData.shadowBatch=true;
+    applyFacadeLOD(walls, distantStyles[style]);
     geos.forEach((g) => g.dispose());
   }
   if (roofParts.length) {
@@ -391,7 +398,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
     roofParts.forEach((g) => g.dispose());
   }
   for(const geometries of roofSurfaces.values()) {
-    mesh(group,mergeGeometries(geometries),p.flatRoof);
+    mesh(group,mergeGeometries(geometries),p.flatRoof).userData.shadowBatch=true;
     geometries.forEach(g=>g.dispose());
   }
   if (houseRoofs.length) {
@@ -399,11 +406,25 @@ function* buildSeattleSteps(scene, data, options = {}) {
     houseRoofs.forEach((g) => g.dispose());
   }
   const landmarks = chunk ? null : buildSeattleLandmarks(group, p);
+  const districts = chunk ? null : createDistrictLandmarks(group,{...p,facades:styles},options.shadowBatch);
   if (landmarks)
     landmarks.landmarks.push(
       ...buildNorthLandmarks(group, { ...p, facades: styles }),
     );
   if (landmarks) colliders.push(...architecturalColliders(landmarks.landmarks));
+  if (districts) {
+    landmarks.landmarks.push(...districts.groups);
+    colliders.push(...architecturalColliders(districts.groups));
+  }
+  if(landmarks){
+    const architecture=new THREE.Group();architecture.name='Batched permanent architecture';group.add(architecture);
+    for(const g of landmarks.landmarks.filter(g=>!g.userData.catalogId)){
+      g.userData.facadeMeshes=0;g.traverse(o=>{if(o.isMesh&&styles.includes(o.material))g.userData.facadeMeshes++;});
+      architecture.add(g);
+    }
+    batchStatic(architecture);
+    architecture.traverse(o=>{if(o.isMesh&&!o.userData.dynamic)o.userData.shadowBatch=true;});
+  }
   // Four tapered branch tiers per tree, with one foliage and one trunk draw for the entire city.
   const sites = [];
   const bounds = chunk ? data.bounds : CORE_BOUNDS;
@@ -484,15 +505,17 @@ function* buildSeattleSteps(scene, data, options = {}) {
       batchStatic(f);
       ferries.push(f);
     }
+    const mountains=new THREE.Group();group.add(mountains);
     for (let i = 0; i < 22; i++)
       mesh(
-        group,
+        mountains,
         new THREE.ConeGeometry(1700, 800 + ((i * 377) % 1200), 5),
         surface("stone", 0x778c95),
         -14000 - (i % 3) * 1100,
         250,
         -22000 + i * 2000,
       );
+    batchStatic(mountains);
   }
   if(options.shadowBatch)batchShadows(group);
   group.updateMatrixWorld(true);
@@ -518,9 +541,11 @@ function* buildSeattleSteps(scene, data, options = {}) {
     distantStyles,
     shadowBatch:options.shadowBatch,
     details,
+    districts,
     colliders,
     buildingCount,
     dispose() {
+      districts?.dispose();
       group.removeFromParent();
       const geometries = new Set();
       group.traverse((o) => {
@@ -566,6 +591,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
           landmarks?.landmarks.find((g) => g.userData.trollEye)?.userData
             .trollEye.scale.y ?? 1,
         details: details?.stats(),
+        districts: districts?.stats(),
         meshes,
         triangles,
         materials: materials.size,
@@ -580,7 +606,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
           return {
             name: g.name,
             signature: g.userData.signature,
-            facadeMeshes,
+            facadeMeshes: g.userData.facadeMeshes ?? facadeMeshes,
           };
         }),
       };
@@ -588,6 +614,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
     update(t, position) {
       if (position) rainier?.update(position);
       if (position) details?.update(position);
+      if (position) districts?.update(position);
       landmarks?.update(t);
       ferries.forEach((f, i) => {
         f.position.set(

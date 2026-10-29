@@ -181,6 +181,7 @@ try {
       }),
   );
   const longTasks = await page.evaluate(() => window.northLongTasks);
+  assert.ok(Math.max(0,...longTasks)<200,`travel must not synchronously compile shaders: longest task ${Math.max(0,...longTasks)} ms`);
   assert.deepEqual(errors, []);
   assert.deepEqual(chrome.blocked, []);
   assert.ok(

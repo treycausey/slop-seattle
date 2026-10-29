@@ -272,6 +272,7 @@ export function createSeattleAvatar(scene, controllers) {
         const h = heads[i],
           pose = rigs[i].pose,
           o = PERSON_BONES.HEAD * 8;
+        h.visible = controllers.entities[i===0?'person':'cyclist'].presentationVisible !== false;
         h.children[0].visible = look === "beast";
         h.children[1].visible = look !== "beast";
         h.quaternion.fromArray(pose, o);

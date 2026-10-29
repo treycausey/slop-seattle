@@ -1001,19 +1001,24 @@ class ThirdPersonControllerManager {
   // pedals, helmet on its head
   poseCharacters(dt) {
     const p = this.entities.person;
-    const air = p.position.y - this.getGroundHeight(p.position.x, p.position.z, 'person');
-    p.rig.update(dt, p.position.x, p.position.z, p.heading, personGround, this, air > 0.02 ? air : 0);
-    p.crowd.begin();
-    p.crowd.add(p.rig, 0);
-    p.crowd.end();
+    // Seattle marks distant inactive rigs; other callers retain the original always-posed behavior.
+    if (p.presentationVisible !== false) {
+      const air = p.position.y - this.getGroundHeight(p.position.x, p.position.z, 'person');
+      p.rig.update(dt, p.position.x, p.position.z, p.heading, personGround, this, air > 0.02 ? air : 0);
+      p.crowd.begin();
+      p.crowd.add(p.rig, 0);
+      p.crowd.end();
+    }
 
     const b = this.entities.cyclist;
-    b.riderRig.ride(b.leanPivot, b.pedalPhase, b.bikeFrame);
-    b.riderCrowd.begin();
-    b.riderCrowd.add(b.riderRig, 0);
-    b.riderCrowd.end();
-    b.helmet.quaternion.copy(b.riderRig.headQuaternion);
-    b.helmet.position.set(0, 0.175, -0.012).applyQuaternion(b.helmet.quaternion).add(b.riderRig.headPosition);
+    if (b.presentationVisible !== false) {
+      b.riderRig.ride(b.leanPivot, b.pedalPhase, b.bikeFrame);
+      b.riderCrowd.begin();
+      b.riderCrowd.add(b.riderRig, 0);
+      b.riderCrowd.end();
+      b.helmet.quaternion.copy(b.riderRig.headQuaternion);
+      b.helmet.position.set(0, 0.175, -0.012).applyQuaternion(b.helmet.quaternion).add(b.riderRig.headPosition);
+    }
   }
 
   update(dt, elapsed) {

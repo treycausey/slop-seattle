@@ -39,13 +39,27 @@ test("Troll view stays below Aurora deck, and collision-safe Locks road arrivals
     "submarine",
   );
 });
-test("15 Seattle discoveries have unique IDs, finite local anchors, and required Troll/Rainier interactions", () => {
-  assert.equal(SECRETS.length, 15);
-  assert.equal(new Set(SECRETS.map((s) => s.id)).size, 15);
+test("30 Seattle discoveries have unique IDs, finite local anchors, and required Troll/Rainier interactions", () => {
+  assert.equal(SECRETS.length, 30);
+  assert.equal(new Set(SECRETS.map((s) => s.id)).size, 30);
   for (const s of SECRETS) assert.ok([s.x, s.z].every(Number.isFinite));
   for (const id of ["troll", "cloud"])
     assert.ok(SECRETS.find((s) => s.id === id));
   assert.equal(SECRET_LIMIT, 3);
+});
+test("every co-located clue remains reachable and previous fifteen-ID saves survive", () => {
+  const state = createSecretState(
+    JSON.stringify(SECRETS.slice(0, 15).map((s) => s.id)),
+  );
+  assert.equal(state.found.size, 15);
+  for (const s of SECRETS)
+    assert.ok(state.nearby(s).some((n) => n.id === s.id));
+  const stadium = SECRETS.find((s) => s.id === "twelve");
+  assert.deepEqual(
+    state.nearby(stadium).map((s) => s.id),
+    ["twelve", "spiral", "hawk", "quake"],
+  );
+  assert.deepEqual(state.nearby({ x: 50000, z: 50000 }), []);
 });
 test("discovery proximity, cooldown and saved identity survive revisits without accepting unknown or corrupt data", () => {
   const state = createSecretState("not json"),

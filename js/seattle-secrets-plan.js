@@ -108,6 +108,111 @@ const rows = [
     "The good shepherds",
     "The neighborhood committee has reached a baa-nanimous decision.",
   ],
+  [
+    "twelve",
+    "stadium",
+    "A flagpole is waiting…",
+    "Raise the 12",
+    "The loudest extra player has arrived.",
+  ],
+  [
+    "spiral",
+    "stadium",
+    "Who ordered a deep ball?",
+    "Perfect spiral",
+    "An extremely optimistic pass over SoDo.",
+  ],
+  [
+    "hawk",
+    "stadium",
+    "Something has home-field advantage…",
+    "Hawk patrol",
+    "The stadium has its own air defense.",
+  ],
+  [
+    "quake",
+    "stadium",
+    "The crowd is getting restless…",
+    "Tiny Beast Quake",
+    "A little seismic enthusiasm from the 12s.",
+  ],
+  [
+    "guitar",
+    "needle",
+    "A feedback loop near the museum…",
+    "Seattle sound",
+    "A guitar and amp stack take the stage. Quietly.",
+  ],
+  [
+    "flannel",
+    "gasworks",
+    "Is that shirt levitating?",
+    "Forecast: flannel",
+    "The official layer for every Seattle season.",
+  ],
+  [
+    "vinyl",
+    "phinney",
+    "Something underground is spinning…",
+    "Subterranean pop",
+    "A tiny independent record has a very big B-side.",
+  ],
+  [
+    "spoons",
+    "market",
+    "Cutlery with a rhythm section…",
+    "Spoon solo",
+    "Two spoons have formed a Seattle supergroup.",
+  ],
+  [
+    "toe",
+    "greenwood",
+    "A suspiciously literal tow truck…",
+    "Toe service",
+    "Seattle's Toe Truck is taking a neighborhood detour.",
+  ],
+  [
+    "elephant",
+    "spheres",
+    "A pink trunk in the skyline…",
+    "Wash day",
+    "A little pink elephant remembers the old car wash.",
+  ],
+  [
+    "geoduck",
+    "locks",
+    "The clam is taller than expected…",
+    "Gooey duck",
+    "Puget Sound's least aerodynamic clam says hello.",
+  ],
+  [
+    "slug",
+    "gardens",
+    "The slow lane is glowing yellow…",
+    "Banana commute",
+    "A banana slug has almost reached its stop.",
+  ],
+  [
+    "pinball",
+    "greenwood",
+    "One more quarter?",
+    "Multiball in the neighborhood",
+    "A tiny arcade has very generous tilt settings.",
+  ],
+  [
+    "interurban",
+    "rocket",
+    "Still waiting for that train?",
+    "Next interurban: eventually",
+    "Even the luggage has grown impatient in Fremont.",
+  ],
+  [
+    "boots",
+    "shepherd",
+    "Cowboy gear on a field trip…",
+    "Hat 'n' Boots holiday",
+    "Georgetown's giants sent their smaller cousins north.",
+  ],
 ];
 export const SECRETS = rows.map(([id, place, clue, title, message]) => {
   const d = DESTINATIONS.find((d) => d.id === place);
@@ -136,9 +241,8 @@ export function createSecretState(raw) {
   }
   return {
     found,
-    nearest(p) {
-      let best = null,
-        distance = 240;
+    nearby(p) {
+      const nearby = [];
       for (
         let x = Math.floor(p.x / 256) - 1;
         x <= Math.floor(p.x / 256) + 1;
@@ -151,12 +255,12 @@ export function createSecretState(raw) {
         )
           for (const s of cells.get(`${x}:${z}`) ?? []) {
             const d = Math.hypot(s.x - p.x, s.z - p.z);
-            if (d < distance) {
-              best = s;
-              distance = d;
-            }
+            if (d < 240) nearby.push({ s, d });
           }
-      return best;
+      return nearby.sort((a, b) => a.d - b.d).map((n) => n.s);
+    },
+    nearest(p) {
+      return this.nearby(p)[0] ?? null;
     },
     remaining(id, t) {
       return Math.max(0, SECRET_COOLDOWN - (t - (last.get(id) ?? -Infinity)));

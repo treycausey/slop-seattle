@@ -2,6 +2,23 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Thirty discoveries — 2026-10-29
+
+Adds four Seahawks scenes (12 flag, spiral, hawk and a small visual Beast Quake), four grunge tributes (guitar/amps, flannel, vinyl and spoons), and seven local oddities (Toe Truck, pink elephant, geoduck, banana slug, pinball, Interurban passengers and visiting Hat 'n' Boots). They reuse the existing deferred discovery loader, local trigger grid and three-effect cap. Three shared palette colors are added, with no new textures, images, models or audio. Small scenes find a nearby clear stage at activation so a neighboring footprint cannot enclose the camera target.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Discover all thirty | Fifteen new themed scenes plus all original discoveries | Another clue cycles co-located hints without disclosing titles | Thirty unique IDs and local-anchor checks; native/WebGL browser tours and inspected captures of all fifteen new scenes | Passed |
+| Repeat visits and simultaneous events | Cooldowns hold; at most three effects remain resident | Fourth event evicts the oldest; expiry and distance disposal remove event geometry | Two thirty-discovery tours per backend plus four-event stadium sequence; oldest event evicted, zero inactive event geometry | Passed |
+| Restore old discovery saves | Original fifteen found IDs remain valid; journal expands to thirty | Invalid IDs are rejected, storage failures do not stop play | Old-save and malformed-save regression, reload and journal checks | Unit passed |
+| Use mobile and reduced motion | Clue controls fit; touch works; transforms hold a stable pose | Journal pauses travel input; movement restores ordinary framing | Real touch events, journal input pause, held transforms and 390×844 overflow checks on both backends | Passed |
+| Preserve performance and source ceiling | Load after first frame; no inactive event geometry; remain below 60 KiB gzip | Shared materials and bounded effects prevent accumulation | 225 permanent tests; 58,938 gzip source bytes (+4,731), unchanged ceiling; GPU/heap evidence below | Passed |
+| Publish tested collection | Exact public sources and working themed discoveries | Public comparison and real Places → clue → F → Look flow | Pending publication | Pending |
+
+Final native/WebGL runs activated all thirty discoveries twice (120 visits total). First interactive frame: 1,262 / 1,101 ms. Settled mobile frames: median 16.7 ms on both, p95 16.8 / 16.7 ms. Whole-scene GPU counters returned to identical values after both tours: 131,162,377 / 90,226,979 reported bytes. Collected heap changed by +405,552 / +37,052 bytes. Inactive effect meshes and geometry bytes were zero; sampled active totals remained below 2 MB and thirty meshes. These are isolated browser measurements on this Mac, not a physical-phone guarantee or an overall rendering-speed claim.
+
+Visual review corrected the new builders' box center/base convention and prevented small scenes from spawning inside neighboring footprints. A focused elephant close-up fixture fails with stage placement removed (600 m aerial fallback), passes with it, and the permanent browser tour rejects that fallback for every new scene. The original fifteen-ID save fixture, local-clue enumeration, cooldowns, journal pause, reload, reduced motion and explicit fourth-event eviction all pass.
+
 ## Rainier and discoveries — 2026-10-29
 
 Design: exploration leads to a local hint, F/tap produces a short visual surprise, and a small journal saves only discoveries already found. No audio, automatic camera takeover, new downloaded art, or permanent geometry for inactive effects. Optional Look views frame the effect itself with a small occlusion target; tower-scale architectural camera anchors remain the default for ordinary Places. At most three effects can be active, and expiry/leaving resets animated landmarks and disposes render objects and geometry.

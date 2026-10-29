@@ -2,6 +2,21 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Rainier eruption — 2026-10-29
+
+Discovery 31 adds a 14-second Rainier eruption, triggered by F/tap at the overlook's “The mountain is rumbling…” clue. Lava tubes follow the visible mountain flank, with 28 instanced ash puffs and 18 ballistic cinders. Four draw calls share the mountain's camera-relative horizon projection. The effect remains visible after leaving the trigger area, expires and disposes its own geometry/materials, and uses a 24-second cooldown. The existing three-effect cap still applies. Reduced motion holds a static eruption; no audio, camera shake, downloads or permanent mountain changes are added.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Visit Rainier overlook and cycle clues | Eruption is discoverable alongside the cloud; old discovery saves remain valid | Local trigger grid and validated saved IDs remain in use | 31-ID and old thirty-ID save contracts; full discovery tours | Passed |
+| Trigger F / tap and choose Look | Ash, cinders and glowing lava align with Rainier on the horizon | Same directional transform as the mountain; normal overlook framing | Native/WebGL peak and mobile captures inspected; four draw calls and geometry below 1.5 MB | Passed |
+| Repeat or travel away | Cooldown blocks new allocation; the bounded eruption continues across the city | 14-second expiry and 24-second cooldown; no accumulation | Three complete eruptions per backend, remote-Place visibility, saturation/cooldown and expiry assertions | Passed |
+| Use touch / reduced motion | Touch triggers the effect; reduced motion holds a stable pose | Expiry still disposes the event; normal snowy mountain remains | Actual emulated touch, stable transform/progress comparisons, unchanged snow-vertex count and zero expired event geometry | Passed |
+| Preserve performance and discovery controls | Fixed resources, no art downloads, journal/reload/other effects still work | Shared geometry, explicit disposal and unchanged resident cap | 233 permanent tests; native/WebGL eruption suites and complete discovery tours; 74,403 gzip source bytes (+1,703), under explicit 74 KiB ceiling | Passed |
+| Publish the tested event | Public eruption, controls and expiry work | Compare served bytes and exercise public trigger | Pending publication | Pending |
+
+After each of three eruptions, native/WebGL reported whole-scene GPU allocation returned to exactly 113,311,460 / 69,243,752 bytes. Geometry, texture, program and uniform-buffer counts stayed equal; collected heap changed by +257,552 / +16,132 bytes between the second and third sample. Inactive event geometry was zero. These browser checks on this Mac do not establish physical-device performance.
+
 ## Flannel and Beast Mode avatars — 2026-10-29
 
 Walking and cycling share a saved Avatar choice: Flannel (red generated plaid, jeans, long hair) or Beast Mode (navy/lime hawk mascot, 24 jersey, beak, crest, broader build and stronger walking arm swing). Existing planted-foot and bicycle pedaling rigs remain intact. Clothes and jersey digits use filtered shader patterns; two head attachments share geometry/materials. Looks switch through one uniform, with no texture/model downloads or per-switch geometry construction. Each costume owns its headwear, replacing the stock helmet to avoid overlapping surfaces.

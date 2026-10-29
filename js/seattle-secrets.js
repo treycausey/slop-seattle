@@ -143,7 +143,10 @@ export function createSecrets(city, options) {
   look.onclick = () => {
     if (!lastSecret) return;
     const model = active.get(lastSecret.id)?.model;
-    if (model && !["troll", "rocket", "cloud"].includes(lastSecret.id)) {
+    if (
+      model &&
+      !["troll", "rocket", "cloud", "eruption"].includes(lastSecret.id)
+    ) {
       const bounds = new THREE.Box3().setFromObject(model.group),
         center = bounds.getCenter(new THREE.Vector3()),
         radius = Math.max(
@@ -176,10 +179,11 @@ export function createSecrets(city, options) {
       if (disposed) return;
       now = time;
       for (const [id, a] of active) {
-        const v = (now - a.start) / SECRET_DURATION;
+        const v = (now - a.start) / (a.secret.duration ?? SECRET_DURATION);
         if (
           v >= 1 ||
-          Math.hypot(position.x - a.secret.x, position.z - a.secret.z) > 420
+          (a.secret.id !== "eruption" &&
+            Math.hypot(position.x - a.secret.x, position.z - a.secret.z) > 420)
         ) {
           remove(id);
           continue;
@@ -221,6 +225,9 @@ export function createSecrets(city, options) {
         resident: active.size,
         limit: SECRET_LIMIT,
         activeIds: [...active.keys()],
+        effects: [...active.values()]
+          .filter((a) => a.model.stats)
+          .map((a) => ({ id: a.secret.id, ...a.model.stats() })),
         poses: [...active.values()].map((a) => ({
           id: a.secret.id,
           position: a.model.group.position.toArray(),

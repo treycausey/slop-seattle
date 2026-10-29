@@ -39,13 +39,27 @@ test("Troll view stays below Aurora deck, and collision-safe Locks road arrivals
     "submarine",
   );
 });
-test("30 Seattle discoveries have unique IDs, finite local anchors, and required Troll/Rainier interactions", () => {
-  assert.equal(SECRETS.length, 30);
-  assert.equal(new Set(SECRETS.map((s) => s.id)).size, 30);
+test("31 Seattle discoveries have unique IDs, finite local anchors, and required Troll/Rainier interactions", () => {
+  assert.equal(SECRETS.length, 31);
+  assert.equal(new Set(SECRETS.map((s) => s.id)).size, 31);
   for (const s of SECRETS) assert.ok([s.x, s.z].every(Number.isFinite));
   for (const id of ["troll", "cloud"])
     assert.ok(SECRETS.find((s) => s.id === id));
   assert.equal(SECRET_LIMIT, 3);
+});
+test("eruption has time to grow and settle, preserves thirty-ID saves and cannot retrigger during its longer cooldown", () => {
+  const s = SECRETS.find((s) => s.id === "eruption"),
+    state = createSecretState(
+      JSON.stringify(SECRETS.slice(0, 30).map((s) => s.id)),
+    );
+  assert.equal(state.found.size, 30);
+  assert.equal(s.place, "rainier");
+  assert.equal(s.duration, 14);
+  assert.equal(s.cooldown, 24);
+  assert(state.trigger(s, 0));
+  assert(!state.trigger(s, 8));
+  assert(!state.trigger(s, 23.99));
+  assert(state.trigger(s, 24));
 });
 test("every co-located clue remains reachable and previous fifteen-ID saves survive", () => {
   const state = createSecretState(

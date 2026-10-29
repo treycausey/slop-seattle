@@ -93,7 +93,15 @@ try {
       );
       if (round === 0) {
         await page.locator("#secret-look").click();
-        if (SECRETS.indexOf(s) >= 15) {
+        if (s.id === "eruption")
+          await page.waitForFunction(() =>
+            window.slopSeattle
+              .getState()
+              .secrets.effects.some(
+                (e) => e.id === "eruption" && e.progress > 0.28,
+              ),
+          );
+        if (SECRETS.indexOf(s) >= 15 && s.id !== "eruption") {
           const view = (await state()).placeView;
           assert.ok(view.clear, `${s.id}: clear discovery view`);
           assert.ok(
@@ -123,7 +131,7 @@ try {
       heap: (await cdp.send("Runtime.getHeapUsage")).usedSize,
     });
   }
-  assert.equal(rounds[1].state.secrets.found, 30);
+  assert.equal(rounds[1].state.secrets.found, SECRETS.length);
   assert.equal(rounds[1].state.secrets.resident, 0);
   assert.ok(Math.abs(rounds[1].state.visuals.trollEyeScale - 1) < 0.001);
   for (const key of ["geometries", "textures", "programs"])
@@ -142,7 +150,7 @@ try {
   );
   // Journal lists discoveries, pauses input and closes using the real dialog control.
   await page.locator("#secret-journal").click();
-  assert.equal(await page.locator("#secret-book li").count(), 30);
+  assert.equal(await page.locator("#secret-book li").count(), SECRETS.length);
   const paused = await state();
   await page.keyboard.down("w");
   await page.evaluate(
@@ -160,7 +168,7 @@ try {
   await page.waitForFunction(
     () => window.slopSeattle?.getState().secrets.ready,
   );
-  assert.equal((await state()).secrets.found, 30);
+  assert.equal((await state()).secrets.found, SECRETS.length);
   await page.setViewportSize({ width: 390, height: 844 });
   await cdp.send("Emulation.setTouchEmulationEnabled", {
     enabled: true,
@@ -265,9 +273,9 @@ try {
         secrets: r.state.secrets,
       })),
       checks: [
-        "30 discoveries and local clue cycling",
+        "31 discoveries and local clue cycling",
         "cooldown",
-        "60 visits and active-cap eviction",
+        "62 visits and active-cap eviction",
         "journal pause",
         "save restore",
         "touch",

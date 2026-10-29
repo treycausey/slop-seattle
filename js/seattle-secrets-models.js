@@ -9,6 +9,7 @@ import {
 } from "./seattle-geometry.js";
 import { terrainHeightAt } from "./seattle-config.js";
 import { encoreModel } from "./seattle-secrets-encore.js";
+import { createRainierEruption } from "./seattle-eruption.js";
 
 const ball = (g, m, x, y, z, rx, ry, rz) => {
   const b = mesh(g, new THREE.SphereGeometry(1, 16, 10), m, x, y, z);
@@ -16,6 +17,7 @@ const ball = (g, m, x, y, z, rx, ry, rz) => {
   return b;
 };
 export function secretModel(s, p, city) {
+  if (s.id === "eruption") return createRainierEruption(city.rainier);
   const g = new THREE.Group();
   g.userData.dynamic = true;
   g.name = `Secret: ${s.id}`;

@@ -8,7 +8,7 @@ import {
   viewSegmentBlocked,
 } from "../js/seattle-viewpoints.js";
 
-test("procedural Seattle with Rainier and 15 discoveries stays below 60 KiB gzip, without texture or model downloads", () => {
+test("procedural Seattle with Rainier and 30 discoveries stays below 60 KiB gzip, without texture or model downloads", () => {
   const directory = new URL("../js/", import.meta.url),
     names = readdirSync(directory).filter((n) => /^seattle.*\.js$/.test(n));
   let bytes = 0;

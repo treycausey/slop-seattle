@@ -8,6 +8,7 @@ import {
   batchStatic,
 } from "./seattle-geometry.js";
 import { terrainHeightAt } from "./seattle-config.js";
+import { encoreModel } from "./seattle-secrets-encore.js";
 
 const ball = (g, m, x, y, z, rx, ry, rz) => {
   const b = mesh(g, new THREE.SphereGeometry(1, 16, 10), m, x, y, z);
@@ -304,7 +305,7 @@ export function secretModel(s, p, city) {
       g.position.y += Math.abs(Math.sin(t * 3)) * 0.5;
       g.rotation.y = Math.sin(v * Math.PI * 2) * 0.1;
     };
-  }
+  } else motion = encoreModel(g, p, s, city);
   batchStatic(g);
   const origin = g.position.clone();
   return {

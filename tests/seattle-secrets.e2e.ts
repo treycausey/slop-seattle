@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { openChrome, spawnServer, minimalEnv } from "@treycausey/kit/e2e";
 import { SECRETS } from "../js/seattle-secrets-plan.js";
-import { DESTINATIONS } from "../js/seattle-config.js";
 const root = new URL("..", import.meta.url).pathname;
 const server = await spawnServer({
   argv: (port) => [
@@ -36,10 +35,14 @@ async function visit(s) {
   await page.locator("#places-button").click();
   await page.locator(`[data-destination="${s.place}"]`).click();
   await page.waitForFunction(
-    (id) => window.slopSeattle.getState().secrets.nearest === id,
+    (id) => window.slopSeattle.getState().secrets.nearbyIds.includes(id),
     s.id,
     { timeout: 60000 },
   );
+  for (let n = 0; (await state()).secrets.nearest !== s.id; n++) {
+    assert.ok(n < SECRETS.length, "every local clue can be selected");
+    await page.locator("#secret-next").click();
+  }
   await page.waitForFunction(
     () => !window.slopSeattle.getState().streaming.busy,
   );
@@ -90,6 +93,14 @@ try {
       );
       if (round === 0) {
         await page.locator("#secret-look").click();
+        if (SECRETS.indexOf(s) >= 15) {
+          const view = (await state()).placeView;
+          assert.ok(view.clear, `${s.id}: clear discovery view`);
+          assert.ok(
+            view.eye[1] - view.target[1] < 400,
+            `${s.id}: close view, not courtyard fallback`,
+          );
+        }
         if (s.id === "troll")
           await page.waitForFunction(
             () => window.slopSeattle.getState().visuals.trollEyeScale < 0.85,
@@ -112,7 +123,7 @@ try {
       heap: (await cdp.send("Runtime.getHeapUsage")).usedSize,
     });
   }
-  assert.equal(rounds[1].state.secrets.found, 15);
+  assert.equal(rounds[1].state.secrets.found, 30);
   assert.equal(rounds[1].state.secrets.resident, 0);
   assert.ok(Math.abs(rounds[1].state.visuals.trollEyeScale - 1) < 0.001);
   for (const key of ["geometries", "textures", "programs"])
@@ -131,7 +142,7 @@ try {
   );
   // Journal lists discoveries, pauses input and closes using the real dialog control.
   await page.locator("#secret-journal").click();
-  assert.equal(await page.locator("#secret-book li").count(), 15);
+  assert.equal(await page.locator("#secret-book li").count(), 30);
   const paused = await state();
   await page.keyboard.down("w");
   await page.evaluate(
@@ -149,7 +160,7 @@ try {
   await page.waitForFunction(
     () => window.slopSeattle?.getState().secrets.ready,
   );
-  assert.equal((await state()).secrets.found, 15);
+  assert.equal((await state()).secrets.found, 30);
   await page.setViewportSize({ width: 390, height: 844 });
   await cdp.send("Emulation.setTouchEmulationEnabled", {
     enabled: true,
@@ -207,6 +218,19 @@ try {
   );
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await settle();
+  // Four co-located events must evict the oldest, never accumulate a fourth.
+  for (const id of ["twelve", "spiral", "hawk", "quake"]) {
+    await visit(SECRETS.find((s) => s.id === id));
+    await page.locator("#secret-discover").click();
+  }
+  assert.equal((await state()).secrets.resident, 3);
+  assert.deepEqual((await state()).secrets.activeIds, [
+    "spiral",
+    "hawk",
+    "quake",
+  ]);
+  await settle();
+  assert.equal((await state()).secrets.geometryBytes, 0);
   const frames = await page.evaluate(
     () =>
       new Promise((resolve) => {
@@ -225,6 +249,9 @@ try {
         requestAnimationFrame(step);
       }),
   );
+  assert.deepEqual(errors, []);
+  assert.deepEqual(media, []);
+  assert.deepEqual(chrome.blocked, []);
   console.log(
     JSON.stringify({
       result: "PASS",
@@ -238,9 +265,9 @@ try {
         secrets: r.state.secrets,
       })),
       checks: [
-        "15 discoveries",
+        "30 discoveries and local clue cycling",
         "cooldown",
-        "30 visits",
+        "60 visits and active-cap eviction",
         "journal pause",
         "save restore",
         "touch",

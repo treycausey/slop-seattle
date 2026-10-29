@@ -18,10 +18,14 @@ export function createSecrets(city, options) {
     p = {
       ...city.palette,
       sun: surface("metal", 0xe3b744),
+      navy: surface("metal", 0x122c49),
+      lime: surface("metal", 0x77c738),
+      pink: surface("metal", 0xe78fb9),
       glow: new THREE.MeshBasicNodeMaterial({ color: 0xffd985 }),
     };
   let now = 0,
     nearest = null,
+    nearby = [],
     lastQuery = -Infinity,
     disposed = false,
     lastSecret = null,
@@ -32,14 +36,22 @@ export function createSecrets(city, options) {
   row.setAttribute("aria-label", "Nearby discoveries");
   const discover = document.createElement("button"),
     look = document.createElement("button"),
-    journal = document.createElement("button");
-  discover.type = look.type = journal.type = "button";
+    journal = document.createElement("button"),
+    next = document.createElement("button");
+  discover.type = look.type = journal.type = next.type = "button";
   discover.id = "secret-discover";
   look.id = "secret-look";
   journal.id = "secret-journal";
+  next.id = "secret-next";
+  next.textContent = "Another clue";
+  next.onclick = () => {
+    if (blocked() || nearby.length < 2) return;
+    nearest = nearby[(nearby.indexOf(nearest) + 1) % nearby.length];
+    refresh();
+  };
   look.textContent = "Look";
   look.hidden = true;
-  row.append(discover, look, journal);
+  row.append(discover, next, look, journal);
   document.body.append(row);
   const toast = document.createElement("p");
   toast.id = "secret-toast";
@@ -115,6 +127,7 @@ export function createSecrets(city, options) {
     );
     row.hidden = blocked();
     discover.hidden = !nearest;
+    next.hidden = nearby.length < 2;
     discover.disabled = !!nearest && state.remaining(nearest.id, now) > 0;
     const text = nearest
       ? discover.disabled
@@ -177,7 +190,8 @@ export function createSecrets(city, options) {
         );
       }
       if (now - lastQuery > 0.2) {
-        nearest = state.nearest(position);
+        nearby = state.nearby(position);
+        if (!nearby.includes(nearest)) nearest = nearby[0] ?? null;
         lastQuery = now;
         refresh();
         if (active.size === 0) toast.hidden = true;
@@ -203,6 +217,7 @@ export function createSecrets(city, options) {
         found: state.found.size,
         foundIds: [...state.found],
         nearest: nearest?.id ?? null,
+        nearbyIds: nearby.map((s) => s.id),
         resident: active.size,
         limit: SECRET_LIMIT,
         activeIds: [...active.keys()],

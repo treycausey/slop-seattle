@@ -405,6 +405,15 @@ export const DESTINATIONS = [
     47.69,
     -122.4026,
   ),
+  destination(
+    "rainier",
+    "Mount Rainier overlook",
+    "Gas Works Park · mountain view",
+    47.6464,
+    -122.3341,
+    47.6473,
+    -122.3344,
+  ),
 ];
 export const WORLD = {
   bounds: BOUNDS,
@@ -417,6 +426,7 @@ export const coast = COAST;
 
 // Hand-composed architectural views, in metres relative to each landmark.
 export const LANDMARK_VIEWS = {
+  rainier: { eye: [-70, 130, -90], target: [8200, 700, 16100] },
   needle: { eye: [-120, 108, 210], target: [0, 103, 0] },
   market: { eye: [88, 35, 105], target: [6, 14, 0] },
   wheel: { eye: [-95, 42, 110], target: [0, 28, 0] },
@@ -425,7 +435,7 @@ export const LANDMARK_VIEWS = {
   spheres: { eye: [65, 85, 125], target: [0, 15, 0] },
   stadium: { eye: [175, 155, 210], target: [0, 32, 0] },
   lake: { eye: [-150, 60, 100], target: [100, -40, -220] },
-  troll: { eye: [-35, 22, 65], target: [0, 5, 0] },
+  troll: { eye: [-28, 11, 48], target: [0, 5, 0] },
   rocket: { eye: [60, 25, 70], target: [0, 10, 0] },
   gasworks: { eye: [110, 65, 140], target: [0, 14, 0] },
   locks: { eye: [-130, 100, 160], target: [0, 0, 0] },

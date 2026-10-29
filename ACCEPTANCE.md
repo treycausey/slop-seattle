@@ -2,6 +2,28 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Rainier and discoveries — 2026-10-29
+
+Design: exploration leads to a local hint, F/tap produces a short visual surprise, and a small journal saves only discoveries already found. No audio, automatic camera takeover, new downloaded art, or permanent geometry for inactive effects. Optional Look views frame the effect itself with a small occlusion target; tower-scale architectural camera anchors remain the default for ordinary Places. At most three effects can be active, and expiry/leaving resets animated landmarks and disposes render objects and geometry.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Choose Mount Rainier overlook | Recognizable snow/glacier-covered mountain on the southeast horizon during ordinary exploration | Directional projection preserves angular size inside the 60 km far plane; flanks blend into haze | The former true-distance placement exceeds the far plane; finite terrain/normals/snow regression and native/WebGL rendered views | Passed |
+| Approach and wake the Fremont Troll | Sculpted brows/nose, silver eye, captured car; eye tracks/blinks, then resets | Camera stays below the Aurora deck; cooldown blocks repeated spawning | Under-deck view regression reproduced failure then passed; keyboard/touch interaction and eye-scale/reset assertions | Passed |
+| Discover fifteen surprises | Distinct generated creatures, objects or scenes with immediate feedback | Local hints appear near roads; discovery IDs are validated and saved | Native/WebGL tours activate all 15 twice, verify cooldowns, journal, save restore and no media requests | Passed |
+| Select Look | Optional close composition shows the current effect clearly | Small target radius avoids the tower-camera fallback; movement/V returns to travel | Tiny-courtyard camera regression failed before radius support, passed after; batched captures of all discoveries | Passed |
+| Use touch / reduced motion | Touch hint activates the Troll; reduced-motion uses a held pose; mobile Look clears side HUD | Travel and map controls remain available | Real emulated touch events, dialog input pause, 390×844 captures and overflow assertion | Passed |
+| Revisit and leave discoveries | No retained event geometry or growing GPU allocation | Expiry and distance eviction call object/geometry disposal; shared materials remain bounded | Two 15-discovery tours per backend; identical warm geometry/texture/program/buffer counts, zero inactive event meshes | Passed |
+| Preserve loading and source budget | Rainier is available normally; discovery code imports after first interactive frame | Module load failure has a readable reload message | 54,207 bytes gzip Seattle-specific JS vs 44,626 before (+9,581); explicit 60 KiB ceiling; 4,608 Rainier triangles | Passed |
+| Preserve normal exploration | Modes, map, 19 Places, bridge travel, saves, help and touch still work | Existing regression suite blocks release | 224 permanent tests plus complete native/WebGL application browser checks | Passed |
+| Publish and close issue 3 | Public site serves exact tested modules and required interactions | Compare served files and exercise public Rainier/Troll paths | Pending publication | Pending |
+
+Native discovery run: first frame 1,280 ms; sampled settled mobile frame median 16.7 ms and p95 16.8 ms. Reported GPU memory returned to exactly 131,773,817 bytes after both tours; collected heap changed from 111,415,308 to 111,880,704 bytes. This is a whole-scene value at Good Shepherd, not memory attributable only to discoveries. Inactive event geometry was zero; every sampled active effect stayed below 2 MB of geometry and 30 meshes, and the manager caps concurrent effects at three. Physical-phone performance is not established by touch emulation.
+
+The equivalent WebGL tour reached its first frame in 1,102 ms, with 16.7 ms median / 16.7 ms p95 settled frames. All GPU counters returned to exactly the same values (90,216,035 reported bytes); collected heap changed from 47,707,144 to 48,807,820 bytes. Reduced motion additionally has a before/after regression: holding progress alone allowed time-driven rotations to continue; both progress and time clocks now hold a stable pose, and the browser test compares transforms across frames. Animated groups are tagged for the separately coordinated static-matrix optimization.
+
+Visual review fixed three concrete mechanisms: the Troll camera sat on the bridge deck; collision-safe Locks arrivals could lie outside the first discovery radius; and a 12 m tower-camera target demanded too much empty space around a small character. The focused regression fixtures cover these failures. A submarine was moved into the lock chamber, and the coffee cup's open top removes overlapping coplanar lids.
+
 ## North Seattle expansion — 2026-10-29
 
 | Action | Expected visible or saved result | Failure / recovery | Evidence | Status |

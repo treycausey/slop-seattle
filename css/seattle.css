@@ -470,3 +470,87 @@ kbd {
 #travel-status[hidden] {
   display: none;
 }
+.secret-controls {
+  position: fixed;
+  bottom: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  max-width: 94vw;
+  z-index: 12;
+  align-items: center;
+}
+.secret-controls button {
+  background: #17343a;
+  color: #eff5ed;
+  box-shadow: 0 5px 18px #0b1c2444;
+  font-size: 12px;
+  padding: 10px 13px;
+  white-space: nowrap;
+}
+.secret-controls button:disabled {
+  color: #b8c9bd;
+  cursor: default;
+}
+.secret-controls [hidden],
+.secret-controls[hidden],
+#secret-toast[hidden] {
+  display: none;
+}
+#secret-toast {
+  position: fixed;
+  top: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #17343a;
+  color: #eff5ed;
+  box-shadow: 0 6px 22px #0b1c2455;
+  padding: 12px 18px;
+  border-radius: 12px;
+  max-width: min(500px, 88vw);
+  font-size: 14px;
+  z-index: 14;
+  pointer-events: none;
+}
+#secret-book {
+  max-width: 560px;
+}
+#secret-book ul {
+  padding-left: 20px;
+}
+#secret-book li {
+  margin: 14px 0;
+  line-height: 1.5;
+}
+#secret-book strong {
+  color: #b9edac;
+}
+@media (max-width: 700px) {
+  .secret-controls {
+    bottom: 166px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 94vw;
+  }
+  .secret-controls button {
+    font-size: 11px;
+    padding: 9px 10px;
+  }
+  .secret-controls #secret-discover {
+    max-width: 92vw;
+    white-space: normal;
+  }
+  #secret-toast {
+    top: 160px;
+    font-size: 12px;
+  }
+  .has-discoveries .status-card,
+  .has-discoveries .atlas-card {
+    bottom: 246px;
+  }
+  .secret-focus .status-card,
+  .secret-focus .atlas-card {
+    display: none;
+  }
+}

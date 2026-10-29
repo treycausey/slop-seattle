@@ -23,6 +23,7 @@ import { buildSeattleLandmarks } from "./seattle-landmarks.js";
 import { createSeattleDetails } from "./seattle-details.js";
 import { buildNorthLandmarks } from "./seattle-north-landmarks.js";
 import { pitchedRoofPositions } from "./seattle-roofs.js";
+import { createRainier } from "./seattle-rainier.js";
 
 function extrude(ring, height, base = 0, holes = []) {
   const shape = new THREE.Shape(
@@ -172,6 +173,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
     colliders = [],
     ferries = [];
   const details = chunk ? null : createSeattleDetails(group, p, data);
+  const rainier = chunk ? null : createRainier(group);
   if (!chunk) {
     const bay = mesh(
       group,
@@ -487,23 +489,12 @@ function* buildSeattleSteps(scene, data, options = {}) {
         250,
         -22000 + i * 2000,
       );
-    const rainier = project(46.8523, -121.7603);
-    cylinder(
-      group,
-      surface("stone", 0xb8c7cc),
-      rainier.x,
-      0,
-      rainier.z,
-      0,
-      6500,
-      4392,
-      10,
-    );
-    cylinder(group, p.white, rainier.x, 2700, rainier.z, 0, 2450, 1692, 10);
   }
   return {
     group,
     palette: p,
+    rainier,
+    landmarks: landmarks?.landmarks ?? [],
     styles,
     details,
     colliders,
@@ -549,6 +540,10 @@ function* buildSeattleSteps(scene, data, options = {}) {
       wheel.userData.cabinMesh.getMatrixAt(0, matrix);
       matrix.decompose(v, q, s);
       return {
+        rainier: rainier?.stats(),
+        trollEyeScale:
+          landmarks?.landmarks.find((g) => g.userData.trollEye)?.userData
+            .trollEye.scale.y ?? 1,
         details: details?.stats(),
         meshes,
         triangles,
@@ -570,6 +565,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
       };
     },
     update(t, position) {
+      if (position) rainier?.update(position);
       if (position) details?.update(position);
       landmarks?.update(t);
       ferries.forEach((f, i) => {

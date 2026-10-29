@@ -32,6 +32,7 @@ async function init() {
   const startedAt = performance.now();
   let readyAt = null,
     shaderCompileMs = null;
+  let secrets = null;
   const status = $("loading-status");
   const response = await fetch(new URL("./seattle-data.json", import.meta.url));
   if (!response.ok)
@@ -101,6 +102,7 @@ async function init() {
     );
   let selectedView = viewFor(selectedPlace);
   const cycleCamera = () => {
+    document.body.classList.remove("secret-focus");
     cameraIndex = (cameraIndex + 1) % cameras.length;
     if (!["skyline", "landmark"].includes(cameras[cameraIndex]))
       camera.setCameraPreset(cameras[cameraIndex], true);
@@ -146,6 +148,7 @@ async function init() {
     }
   }
   function teleport(x, z, heading = Math.PI) {
+    document.body.classList.remove("secret-focus");
     controllerManager.teleportActiveTo(x, z, heading);
     touch.reset();
     gamepad.reset();
@@ -311,7 +314,7 @@ async function init() {
       map.dialog.open ? map.dialog.close() : map.open();
       return;
     }
-    if (map.dialog.open || $("help").open) return;
+    if (map.dialog.open || $("help").open || secrets?.isOpen()) return;
     if (/^[1-4]$/.test(e.key)) selectMode(modes[Number(e.key) - 1]);
     if (e.key.toLowerCase() === "v") cycleCamera();
     if (
@@ -342,6 +345,7 @@ async function init() {
         streaming: stream.stats(),
         gpu: { ...renderer.info.memory },
         visuals: city.visualStats(),
+        secrets: secrets?.stats() ?? { ready: false },
         startupMs: readyAt === null ? null : Math.round(readyAt - startedAt),
         shaderCompileMs,
         placeView: cameras[cameraIndex] === "landmark" ? selectedView : null,
@@ -351,6 +355,7 @@ async function init() {
   status.textContent = "Compiling city shaders…";
   map.draw();
   camera.update(1 / 60, 0);
+  city.rainier?.update(camera.currentPos);
   lighting.update(camera.currentPos);
   const compileStartedAt = performance.now();
   await renderer.compileAsync(scene, camera.camera);
@@ -364,7 +369,7 @@ async function init() {
       dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     elapsed += dt;
-    const modal = map.dialog.open || $("help").open;
+    const modal = map.dialog.open || $("help").open || secrets?.isOpen();
     gamepad.setEnabled(!modal);
     touch.setEnabled(!modal);
     gamepad.update(dt);
@@ -377,6 +382,7 @@ async function init() {
     ) {
       cameraIndex = 0;
       camera.resetForTeleport();
+      document.body.classList.remove("secret-focus");
       $("camera-button").textContent = "Camera · V";
     }
     camera.update(dt, elapsed);
@@ -399,6 +405,7 @@ async function init() {
     lighting.update(camera.currentPos);
     if (!traveling) stream.update(controllerManager.getActiveEntity().position);
     city.update(elapsed, readyAt === null ? null : camera.currentPos);
+    secrets?.update(controllerManager.getActiveEntity().position, elapsed);
     updatePlayerMaterials();
     renderer.render(scene, camera.camera);
     frames++;
@@ -432,6 +439,48 @@ async function init() {
       // Coarse north skyline arrives after the first interactive frame, never on the boot critical path.
       requestAnimationFrame(() =>
         stream.loadOverview().catch((error) => showTravelStatus(error.message)),
+      );
+      requestAnimationFrame(() =>
+        import("./seattle-secrets.js")
+          .then(({ createSecrets }) => {
+            secrets = createSecrets(city, {
+              blocked: () => map.dialog.open || $("help").open || traveling,
+              onModal: () => {
+                controllerManager.resetInput();
+                touch.reset();
+                gamepad.reset();
+              },
+              look: (id, focus) => {
+                document.body.classList.add("secret-focus");
+                selectedPlace = DESTINATIONS.find((d) => d.id === id);
+                selectedView = focus
+                  ? resolveLandmarkView(
+                      {
+                        ...selectedPlace,
+                        x: focus.center.x,
+                        z: focus.center.z,
+                      },
+                      {
+                        eye: [
+                          focus.radius * 0.8,
+                          focus.radius * 0.55,
+                          focus.radius * 1.3,
+                        ],
+                        target: [0, 0, 0],
+                        radius: Math.min(6, focus.radius * 0.12),
+                      },
+                      city.colliders,
+                      focus.center.y,
+                    )
+                  : viewFor(selectedPlace);
+                cameraIndex = cameras.indexOf("landmark");
+                $("camera-button").textContent = "Place · V";
+              },
+            });
+          })
+          .catch((error) =>
+            showTravelStatus("Discoveries could not load. Reload to retry."),
+          ),
       );
     }
   });

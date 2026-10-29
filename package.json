@@ -10,6 +10,7 @@
     "test:rendering": "bun run tests/seattle-rendering.e2e.ts",
     "test:perf": "bun run tests/seattle-perf.e2e.ts",
     "test:blue": "bun run tests/seattle-blue.e2e.ts",
+    "test:avatar": "bun run tests/seattle-avatar.e2e.ts",
     "data:seattle": "bun run tools/build-seattle.mjs",
     "data:north:fetch": "bun run tools/fetch-seattle-north.mjs",
     "data:north": "bun run tools/build-seattle-north.mjs",

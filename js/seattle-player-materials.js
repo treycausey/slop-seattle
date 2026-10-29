@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu";
 import { uniformArray } from "three/tsl";
 import { createPersonMaterial } from "./pedestrians.js";
+import { createSeattleAvatar } from "./seattle-avatar.js";
 
 export function preparePlayerMaterials(scene, controllers, renderer) {
   const sync = [];
@@ -20,18 +21,28 @@ export function preparePlayerMaterials(scene, controllers, renderer) {
         const uniforms = uniformArray(vectors, "vec4");
         lod.mesh.material.dispose();
         lod.mesh.material = createPersonMaterial(uniforms);
-        sync.push(() => vectors.forEach((v, i) => v.fromArray(lod.pose.value.array, i * 4)));
+        sync.push(() =>
+          vectors.forEach((v, i) => v.fromArray(lod.pose.value.array, i * 4)),
+        );
       }
     }
   }
   // The upstream SSR pipeline has normal and metalRough attachments. Seattle
   // renders a single color attachment, so those decal overrides must be removed.
   scene.traverse((object) => {
-    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+    for (const material of Array.isArray(object.material)
+      ? object.material
+      : [object.material]) {
       if (material?.mrtNode) material.mrtNode = null;
     }
   });
-  const update = () => sync.forEach((fn) => fn());
+  const avatar = createSeattleAvatar(scene, controllers);
+  const update = () => {
+    sync.forEach((fn) => fn());
+    avatar.update();
+  };
+  update.avatarStats = avatar.stats;
+  update.frameAvatar = avatar.frame;
   update();
   return update;
 }

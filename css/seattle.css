@@ -481,6 +481,9 @@ kbd {
   body[data-mode="blueangels"] .status-card .hint,
   body[data-mode="blueangels"] .status-card > strong { display: none; }
 }
+#avatar-control { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 12px; }
+#avatar-control[hidden] { display: none; }
+#avatar-look { min-height: 34px; padding: 5px 8px; min-width: 0; flex: 1; }
 .secret-controls {
   position: fixed;
   bottom: 108px;

@@ -8,7 +8,7 @@ import {
   viewSegmentBlocked,
 } from "../js/seattle-viewpoints.js";
 
-test("procedural Seattle with depth and distance shading stays below 70 KiB gzip, without texture or model downloads", () => {
+test("procedural Seattle with depth and selectable avatars stays below 72 KiB gzip, without texture or model downloads", () => {
   const directory = new URL("../js/", import.meta.url),
     names = readdirSync(directory).filter((n) => /^seattle.*\.js$/.test(n));
   let bytes = 0;
@@ -21,7 +21,7 @@ test("procedural Seattle with depth and distance shading stays below 70 KiB gzip
     );
   }
   assert.ok(
-    bytes < 70 * 1024,
+    bytes < 72 * 1024,
     `Seattle JS budget exceeded: ${bytes} compressed bytes`,
   );
   console.log(

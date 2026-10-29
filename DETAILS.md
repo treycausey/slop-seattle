@@ -24,9 +24,9 @@ The permanent limits are 9 slots × 6 material bins × 256 instances: **884,736 
 
 ## Local evidence — 2026-10-29
 
-`bun run test`: **212 passed**. Payload suite unchanged: **28,404 bytes gzip** for all Seattle-specific JS versus 23,086 before this pass (+5,318), below the existing 28 KiB limit. Geographic data is unchanged by this branch. This is source gzip size, not total HTTP/page weight.
+`bun run test`: **212 passed**. Payload suite unchanged: **28,465 bytes gzip** for all Seattle-specific JS including production integration versus 23,086 before this pass (+5,379), below the existing 28 KiB limit. Geographic data is unchanged by this branch. This is source gzip size, not total HTTP/page weight.
 
-The isolated API browser test injects the integration above into the real city/entry responses without modifying the geography owner's files. It exercises the actual Places and Walk/first-person paths, 24 destination teleports, repeated data replacement, empty data, and double disposal. Production wiring and final combined-site validation belong to the geography integration.
+The API was first tested in isolation by injecting integration into browser responses. The production city/entry now supplies that integration directly, with detail updates after first ready. The browser benchmark exposes the real objects for measurement, and can disable detail for a baseline. It exercises the actual Places and Walk/first-person paths, 24 destination teleports, repeated data replacement, empty data, and double disposal. The north expansion will wire the same API into its region streamer separately.
 
 Run:
 
@@ -48,5 +48,7 @@ The baseline disables this layer while retaining the same landmark/material addi
 | Scene mesh objects / triangles, final view | 367 / 390,330 | 421 / 429,408 |
 
 The measured overhead is about **0.98 MiB reported GPU memory** and **5.8 MiB JS heap** in these runs. GPU counters stayed identical across the three warm tours on both backends; heap growth between later tours was tens of KiB, rather than per-tile retained geometry. The layer generated 2,801–3,241 visible instances in the sampled neighborhoods. WebGPU first indexing/construction reached 13.6 ms; subsequent sampled tile builds were around 0.3–0.4 ms. Data-revision/disposal tests prove buffer reuse and that empty input releases visible detail; they do not establish physical-device memory limits.
+
+Matched sequential WebGL runs: 817 ms ready / 329 ms compile disabled, 743 ms ready / 313 ms compile enabled. Both settled frame p95 values were 16.7 ms, and both transition maximum intervals were 216.7 ms. The enabled scene reported 64,887,690 GPU bytes versus 63,965,636 disabled (+0.88 MiB); final heaps were 34,960,732 and 33,739,896 (+1.16 MiB). First detail construction/indexing reached 10.5 ms. One earlier WebGL run made concurrently with other browser work had a 2.65 s stall and 3.37 s startup; it is retained in the raw logs and was not used as a matched performance comparison.
 
 Browser measurements are local Chrome on this Mac, with a warm engine/CDN cache and occasional screenshot/GC work in transition intervals. They are not cold-network timings or physical iPhone/Safari evidence. Initial reveals, mode switching and screenshot work can stall; settled 60 Hz sampling does not prove every transition is smooth. Full scene memory includes inherited environment, shadows, players, and engine resources, far beyond this detail pool. No claim is made that the whole app uses less than 1 MiB.

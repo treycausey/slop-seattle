@@ -5,6 +5,7 @@ import { polygonContains } from "./building-collision.js";
 import { createSeattlePalette, createSeattleFacades, surface } from "./seattle-materials.js";
 import { mesh, box, cylinder, batchStatic } from "./seattle-geometry.js";
 import { buildSeattleLandmarks } from "./seattle-landmarks.js";
+import { createSeattleDetails } from "./seattle-details.js";
 
 function extrude(ring, height, base = 0) {
   const shape = new THREE.Shape(ring.map((p) => new THREE.Vector2(p[0], -p[1])));
@@ -110,6 +111,7 @@ export function buildSeattle(scene, data) {
     styles = createSeattleFacades(),
     colliders = [],
     ferries = [];
+  const details = createSeattleDetails(group, p, data);
   const bay = mesh(group, new THREE.PlaneGeometry(70000, 70000), p.water, 0, -0.5, 0);
   bay.name = "Elliott Bay";
   bay.rotation.x = -Math.PI / 2;
@@ -292,6 +294,7 @@ export function buildSeattle(scene, data) {
   cylinder(group, p.white, rainier.x, 2700, rainier.z, 0, 2450, 1692, 10);
   return {
     group,
+    details,
     colliders,
     buildingCount,
     visualStats() {
@@ -318,6 +321,7 @@ export function buildSeattle(scene, data) {
       wheel.userData.cabinMesh.getMatrixAt(0, matrix);
       matrix.decompose(v, q, s);
       return {
+        details: details.stats(),
         meshes,
         triangles,
         materials: materials.size,
@@ -330,7 +334,8 @@ export function buildSeattle(scene, data) {
         })),
       };
     },
-    update(t) {
+    update(t, position) {
+      if (position) details.update(position);
       landmarks.update(t);
       ferries.forEach((f, i) => {
         f.position.set(

@@ -24,31 +24,16 @@ page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => {
   if (m.type() === "error" || m.text().includes("GL_INVALID")) errors.push(m.text());
 });
-// Isolated API integration, until the geography branch supplies the production wiring.
-// All geometry/materials/data and user interactions below are the real application.
+// Expose production objects for measurements, without changing the enabled integration.
 await page.route("**/js/seattle-city.js", async (route) => {
   let source = readFileSync(`${root}/js/seattle-city.js`, "utf8");
-  source = `import {createSeattleDetails} from './seattle-details.js';\n` + source;
-  source = source.replace(
-    "const bay =",
-    `const details=createSeattleDetails(group,p,data);window.detailProbe={details,group};const bay =`,
-  );
-  source = source.replace(
-    "update(t) {",
-    `update(t,position) {if(position && ${!baseline})details.update(position);`,
-  );
-  source = source.replace(
-    "meshes,\n        triangles,",
-    "details:details.stats(),meshes,\n        triangles,",
-  );
+  assert.ok(source.includes("createSeattleDetails"), "production detail integration is required");
+  source = source.replace("const bay =", "window.detailProbe={details,group};const bay =");
+  if (baseline) source = source.replace("if (position) details.update(position);", "");
   await route.fulfill({ contentType: "text/javascript", body: source });
 });
 await page.route("**/js/seattle.js", async (route) => {
   const source = readFileSync(`${root}/js/seattle.js`, "utf8")
-    .replace(
-      "city.update(elapsed);",
-      'city.update(elapsed,document.body.dataset.ready==="true"?camera.currentPos:null);',
-    )
     .replace(
       "renderer.render(scene, camera.camera);",
       "window.detailRenderer=renderer;renderer.render(scene, camera.camera);",

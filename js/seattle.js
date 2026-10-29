@@ -302,7 +302,7 @@ async function init() {
       );
     }
     lighting.update(camera.currentPos);
-    city.update(elapsed);
+    city.update(elapsed, readyAt === null ? null : camera.currentPos);
     updatePlayerMaterials();
     renderer.render(scene, camera.camera);
     frames++;

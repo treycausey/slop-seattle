@@ -470,6 +470,17 @@ kbd {
 #travel-status[hidden] {
   display: none;
 }
+@media (max-width: 700px) {
+  body[data-mode="blueangels"] .atlas-card { display: none; }
+  body[data-mode="blueangels"] .status-card {
+    top: 170px;
+    bottom: auto;
+    width: auto;
+    padding: 10px 14px;
+  }
+  body[data-mode="blueangels"] .status-card .hint,
+  body[data-mode="blueangels"] .status-card > strong { display: none; }
+}
 .secret-controls {
   position: fixed;
   bottom: 108px;

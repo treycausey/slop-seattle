@@ -7,6 +7,7 @@
     "test:e2e": "bun run tests/seattle.e2e.ts",
     "test:north": "bun run tests/seattle-north.e2e.ts",
     "test:secrets": "bun run tests/seattle-secrets.e2e.ts",
+    "test:blue": "bun run tests/seattle-blue.e2e.ts",
     "data:seattle": "bun run tools/build-seattle.mjs",
     "data:north:fetch": "bun run tools/fetch-seattle-north.mjs",
     "data:north": "bun run tools/build-seattle-north.mjs",

@@ -109,7 +109,10 @@ export function createSeattleWater() {
   mat.colorNode = Fn(() => {
     const p = positionWorld.xz,
       gust = noise2D(p.mul(0.012).add(time.mul(0.004)));
-    return mix(color(0x163e47), color(0x3c6970), gust.mul(0.7).add(0.15));
+    const crest = smoothstep(0.965, 0.995, sin(p.x.mul(0.24).add(p.y.mul(0.13)).add(time.mul(0.75))))
+      .mul(smoothstep(0.62, 0.85, noise2D(p.mul(vec2(0.12, 0.45)))))
+      .mul(smoothstep(1.5, 0.15, length(fwidth(p))));
+    return mix(mix(color(0x163e47), color(0x3c6970), gust.mul(0.7).add(0.15)), color(0x96b4ad), crest.mul(0.45));
   })();
   mat.roughnessNode = Fn(() => noise2D(positionWorld.xz.mul(0.018)).mul(0.13).add(0.17))();
   return mat;

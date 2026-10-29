@@ -88,6 +88,8 @@ function needle(g, p) {
       x = Math.cos(a) * 18.8,
       z = Math.sin(a) * 18.8;
     beam(g, p.steel, [x, 153, z], [x, 160.2, z], 0.095);
+    // Outer observation deck balustrade and its uninterrupted handrail.
+    beam(g, p.steel, [x * 1.08, 152.7, z * 1.08], [x * 1.08, 154, z * 1.08], 0.04);
     beam(
       g,
       p.white,
@@ -96,6 +98,7 @@ function needle(g, p) {
       0.07,
     );
   }
+  mesh(g, new THREE.TorusGeometry(20.3, 0.065, 4, 96), p.steel, 0, 154, 0).rotation.x = Math.PI / 2;
   cylinder(g, p.concrete, 0, 0, 0, 22, 24, 1, 48);
   cylinder(g, glass, 0, 1, 0, 17, 20, 4.5, 48);
   sign(g, "SPACE NEEDLE", 0, 4, 20.2, 14, "#293c40");
@@ -126,6 +129,11 @@ function market(g, p) {
     box(g, p.timber, x, 0.7, 13.7, 5, 1.05, 1.6);
     for (let j = 0; j < 3; j++) {
       box(g, p.timber, x - 1.65 + j * 1.65, 1.75, 13.7, 1.5, 0.15, 1.4);
+      for (let row = 0; row < 3; row++) for (let col = 0; col < 4; col++) {
+        const fruit = mesh(g, new THREE.IcosahedronGeometry(0.16, 0), j % 2 ? p.leaf : p.roof,
+          x - 2.15 + j * 1.65 + col * 0.33, 1.98, 13.3 + row * 0.34);
+        fruit.scale.y = 0.8;
+      }
     }
   }
   const neon = canvasMaterial(
@@ -217,7 +225,11 @@ function wheel(g, p, animations) {
   g.position.y = 4;
   box(g, p.timber, 55, -1, 0, 150, 2, 38);
   for (const z of [-14, 14])
-    for (let x = -15; x < 125; x += 15) cylinder(g, p.timber, x, -5, z, 0.6, 0.75, 5, 8);
+    for (let x = -15; x < 125; x += 15) {
+      cylinder(g, p.timber, x, -5, z, 0.6, 0.75, 5, 8);
+      box(g, p.steel, x, 1, z, 0.1, 1.2, 0.1);
+    }
+  for (const z of [-14, 14]) for (const y of [1.5, 2.2]) box(g, p.steel, 55, y, z, 150, 0.07, 0.07);
   for (const z of [-4, 4])
     for (const x of [-14, 14]) beam(g, p.white, [x, 0, z * 2], [0, 28, z], 0.72);
   const rotor = new THREE.Group();
@@ -323,6 +335,8 @@ function smith(g, p) {
   box(g, terra, 0, 34, 0, 24, 82, 25);
   for (const y of [6, 31.5, 34, 110, 115.5, 119])
     box(g, p.limestone, 0, y, 0, y < 35 ? 41 : 27, 1.4, y < 35 ? 37 : 28);
+  for (const side of [-1, 1]) for (let x = -10; x <= 10; x += 5)
+    box(g, p.limestone, x, 35, side * 12.6, 0.38, 75, 0.3);
   box(g, p.dark, 0, 117, 0, 21, 6, 22);
   for (const x of [-12.5, 12.5])
     for (let z = -11; z <= 11; z += 4.4) box(g, p.limestone, x, 116, z, 0.85, 7.5, 0.85);
@@ -447,6 +461,11 @@ function stadium(g, p) {
   });
   const pitch = mesh(g, new THREE.PlaneGeometry(49, 110), field, 0, 1, 0);
   pitch.rotation.x = -Math.PI / 2;
+  for (const end of [-1, 1]) {
+    beam(g, p.white, [0, 1, end * 58], [0, 6, end * 58], 0.12);
+    beam(g, p.white, [-2.8, 6, end * 58], [2.8, 6, end * 58], 0.1);
+    for (const x of [-2.8, 2.8]) beam(g, p.white, [x, 6, end * 58], [x, 12, end * 58], 0.09);
+  }
   for (const side of [-1, 1]) {
     for (let tier = 0; tier < 8; tier++)
       box(

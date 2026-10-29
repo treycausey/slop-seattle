@@ -122,6 +122,21 @@ try {
       Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z),
     );
     const destinationSpec = DESTINATIONS.find((d) => d.id === destination);
+    if (
+      [
+        "gasworks",
+        "ballard",
+        "shepherd",
+        "greenlake",
+        "greenwood",
+        "gardens",
+      ].includes(destination)
+    )
+      assert.ok(
+        p.visuals.landmarks.find((l) => l.name === destinationSpec.name)
+          .facadeMeshes > 0,
+        `${destination}: shared procedural facade detail`,
+      );
     assert.ok(
       Math.hypot(
         p.x - destinationSpec.arrival.x,
@@ -180,20 +195,18 @@ try {
     1600 / (BOUNDS.maxX - BOUNDS.minX + 400),
     1200 / (BOUNDS.maxZ - BOUNDS.minZ + 400),
   );
-  await page
-    .locator("#atlas-map")
-    .click({
-      position: {
-        x:
-          ((800 + (bridge.x - (BOUNDS.minX + BOUNDS.maxX) / 2) * mapScale) *
-            bounds.width) /
-          1600,
-        y:
-          ((600 + (bridge.z - (BOUNDS.minZ + BOUNDS.maxZ) / 2) * mapScale) *
-            bounds.height) /
-          1200,
-      },
-    });
+  await page.locator("#atlas-map").click({
+    position: {
+      x:
+        ((800 + (bridge.x - (BOUNDS.minX + BOUNDS.maxX) / 2) * mapScale) *
+          bounds.width) /
+        1600,
+      y:
+        ((600 + (bridge.z - (BOUNDS.minZ + BOUNDS.maxZ) / 2) * mapScale) *
+          bounds.height) /
+        1200,
+    },
+  });
   await page.waitForFunction(
     () => !document.getElementById("atlas").open,
     null,

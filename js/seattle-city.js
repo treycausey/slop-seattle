@@ -394,7 +394,10 @@ function* buildSeattleSteps(scene, data, options = {}) {
     houseRoofs.forEach((g) => g.dispose());
   }
   const landmarks = chunk ? null : buildSeattleLandmarks(group, p);
-  if (landmarks) landmarks.landmarks.push(...buildNorthLandmarks(group, p));
+  if (landmarks)
+    landmarks.landmarks.push(
+      ...buildNorthLandmarks(group, { ...p, facades: styles }),
+    );
   if (landmarks) colliders.push(...architecturalColliders(landmarks.landmarks));
   // Four tapered branch tiers per tree, with one foliage and one trunk draw for the entire city.
   const sites = [];
@@ -553,10 +556,17 @@ function* buildSeattleSteps(scene, data, options = {}) {
         generatedTextures: textures.size,
         wheelCabins: wheel.userData.cabinCount,
         wheelCabinRoll: new THREE.Euler().setFromQuaternion(q).z,
-        landmarks: landmarks.landmarks.map((g) => ({
-          name: g.name,
-          signature: g.userData.signature,
-        })),
+        landmarks: landmarks.landmarks.map((g) => {
+          let facadeMeshes = 0;
+          g.traverse((o) => {
+            if (o.isMesh && styles.includes(o.material)) facadeMeshes++;
+          });
+          return {
+            name: g.name,
+            signature: g.userData.signature,
+            facadeMeshes,
+          };
+        }),
       };
     },
     update(t, position) {

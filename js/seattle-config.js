@@ -432,7 +432,7 @@ export const LANDMARK_VIEWS = {
   ballard: { eye: [-85, 48, 120], target: [0, 10, 0] },
   shepherd: { eye: [100, 65, 135], target: [0, 15, 0] },
   greenlake: { eye: [-90, 65, 120], target: [110, -5, 0] },
-  greenwood: { eye: [70, 40, 100], target: [0, 8, 0] },
+  greenwood: { eye: [0, 38, 110], target: [0, 8, 0] },
   phinney: { eye: [-85, 45, 110], target: [0, 12, 0] },
   gardens: { eye: [100, 65, 120], target: [-80, -10, -60] },
 };

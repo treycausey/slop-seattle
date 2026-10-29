@@ -97,7 +97,7 @@ function gasworks(g, p) {
     for (const x of [-28, 0, 28]) beam(g, p.roof, [x, 0, z], [x, 18, z], 0.6);
   }
   beam(g, p.copper, [-28, 13, 0], [28, 13, 0], 1.3);
-  box(g, p.roof, 5, 0, 35, 38, 7, 16);
+  box(g, p.facades[4], 5, 0, 35, 38, 7, 16);
   gable(g, p.copper, 5, 7, 35, 40, 5, 18);
   g.userData.signature =
     "rusted cylindrical gasification towers, catwalk rings, exposed pipework and boiler shed";
@@ -146,7 +146,7 @@ function avenue(g, p) {
       const x = side * 25,
         z = (i - 2) * 23,
         h = 9 + (i % 3) * 3,
-        m = i % 2 ? p.roof : p.limestone;
+        m = p.facades[i % 2 ? 4 : 3];
       box(g, m, x, 0, z, 22, h, 21);
       box(g, p.white, x, h, z, 23, 0.8, 22);
       for (const offset of [-7, 0, 7]) {
@@ -161,8 +161,8 @@ function avenue(g, p) {
     "diagonal brick commercial street, stepped cornices, narrow storefronts and green awnings";
 }
 function shepherd(g, p) {
-  box(g, p.roof, 0, 0, 0, 88, 16, 28);
-  box(g, p.roof, 0, 0, 14, 20, 21, 16);
+  box(g, p.facades[4], 0, 0, 0, 88, 16, 28);
+  box(g, p.facades[4], 0, 0, 14, 20, 21, 16);
   gable(g, p.dark, 0, 16, 0, 90, 8, 30);
   gable(g, p.dark, 0, 21, 14, 22, 7, 18);
   cylinder(g, p.copper, 0, 27, 14, 0, 4, 7, 4);
@@ -174,7 +174,7 @@ function shepherd(g, p) {
     "long red-brick former convent, steep slate roof, projecting central gable and copper cupola";
 }
 function bathhouse(g, p) {
-  box(g, p.limestone, 0, 0, 0, 35, 5, 16);
+  box(g, p.facades[3], 0, 0, 0, 35, 5, 16);
   gable(g, p.roof, 0, 5, 0, 38, 5, 19);
   for (const x of [-13, -7, 0, 7, 13]) {
     box(g, p.dark, x, 1, 8.1, 3, 3, 0.2);
@@ -202,13 +202,13 @@ function greenwood(g, p) {
     for (let i = 0; i < 3; i++) {
       const x = side * 23,
         z = (i - 1) * 28;
-      box(g, i % 2 ? p.limestone : p.roof, x, 0, z, 25, 8 + i * 2, 25);
+      box(g, p.facades[i % 2 ? 3 : 4], x, 0, z, 25, 8 + i * 2, 25);
       for (const d of [-8, 0, 8])
         box(g, p.dark, x - side * 12.6, 1, z + d, 0.2, 4, 5);
       box(g, p.copper, x - side * 14, 4, z, 3, 0.4, 23);
     }
-  sign(g, "GREENWOOD", -22, 9, 14, 23, "#5b392c");
-  sign(g, "TAPROOT THEATRE", 22, 10, 14, 23, "#304d44");
+  sign(g, "GREENWOOD", -22, 9, 41, 23, "#5b392c");
+  sign(g, "TAPROOT THEATRE", 22, 10, 41, 23, "#304d44");
   for (const z of [-40, 40])
     for (let x = -15; x < 16; x += 5) box(g, p.white, x, 0.3, z, 2.8, 0.04, 5);
   g.userData.signature =
@@ -226,7 +226,7 @@ function phinney(g, p) {
     "blue former schoolhouse on Phinney Ridge, white trim, steep gables and projecting porch";
 }
 function gardens(g, p) {
-  box(g, p.roof, 0, 0, 0, 34, 7, 20);
+  box(g, p.facades[4], 0, 0, 0, 34, 7, 20);
   gable(g, p.dark, 0, 7, 0, 37, 5, 23);
   for (const x of [-12, -6, 0, 6, 12]) box(g, p.dark, x, 1, 10.2, 3, 3.8, 0.2);
   for (let i = 0; i < 12; i++) {
@@ -248,7 +248,12 @@ function gardens(g, p) {
   g.userData.signature =
     "red-brick beach bathhouse, dark gabled roof, driftwood logs and open Shilshole shoreline";
 }
-export function buildNorthLandmarks(parent, p) {
+export function buildNorthLandmarks(parent, palette) {
+  // Static hosts may briefly pair a cached city module with the newer landmark module.
+  const p = {
+    ...palette,
+    facades: palette.facades ?? { 3: palette.limestone, 4: palette.roof },
+  };
   const landmarks = [],
     builders = {
       troll,

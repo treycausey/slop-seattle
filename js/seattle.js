@@ -4,11 +4,19 @@ import { CameraSystem } from "./cameras.js";
 import { LightingSystem } from "./lighting.js";
 import { TouchControls } from "./touch-controls.js";
 import { GamepadControls } from "./gamepad-controls.js";
-import { DESTINATIONS, WORLD, heightAt, LANDMARK_VIEWS } from "./seattle-config.js";
+import {
+  DESTINATIONS,
+  WORLD,
+  heightAt,
+  terrainHeightAt,
+  BOUNDS,
+  LANDMARK_VIEWS,
+} from "./seattle-config.js";
 import { buildSeattle } from "./seattle-city.js";
 import { SeattleMap, nearestRoad } from "./seattle-map.js";
 import { preparePlayerMaterials } from "./seattle-player-materials.js";
 import { resolveLandmarkView } from "./seattle-viewpoints.js";
+import { createSeattleStream } from "./seattle-stream.js";
 
 const $ = (id) => document.getElementById(id);
 const modes = ["person", "car", "cyclist", "helicopter"];
@@ -27,7 +35,9 @@ async function init() {
   const status = $("loading-status");
   const response = await fetch(new URL("./seattle-data.json", import.meta.url));
   if (!response.ok)
-    throw new Error(`Seattle map data could not load (${response.status}). Reload to try again.`);
+    throw new Error(
+      `Seattle map data could not load (${response.status}). Reload to try again.`,
+    );
   const data = await response.json();
   status.textContent = "Preparing the waterfront and skyline…";
   const renderer = new THREE.WebGPURenderer({
@@ -43,12 +53,41 @@ async function init() {
   $("canvas-container").appendChild(renderer.domElement);
   await renderer.init();
   const scene = new THREE.Scene();
-  const lighting = new LightingSystem(scene, renderer);
+  const lighting = new LightingSystem(scene, renderer, {
+    shadowTileSize: innerWidth < 700 ? 1024 : 1536,
+  });
   lighting.sunLight.castShadow = renderer.backend.isWebGPUBackend;
   const city = buildSeattle(scene, data);
   status.textContent = `Preparing ${city.buildingCount.toLocaleString()} buildings and player controls…`;
-  const controllerManager = new ThirdPersonControllerManager(scene, city.colliders, WORLD);
-  const updatePlayerMaterials = preparePlayerMaterials(scene, controllerManager, renderer);
+  const controllerManager = new ThirdPersonControllerManager(
+    scene,
+    city.colliders,
+    WORLD,
+  );
+  let traveling = false;
+  const travelStatus = document.createElement("p");
+  travelStatus.id = "travel-status";
+  travelStatus.setAttribute("role", "status");
+  travelStatus.hidden = true;
+  document.body.appendChild(travelStatus);
+  const showTravelStatus = (message) => {
+    travelStatus.textContent = message;
+    travelStatus.hidden = !message;
+  };
+  const stream = createSeattleStream(
+    city,
+    data,
+    (colliders) => {
+      controllerManager.colliders = colliders;
+      controllerManager._colliderCells = null;
+    },
+    showTravelStatus,
+  );
+  const updatePlayerMaterials = preparePlayerMaterials(
+    scene,
+    controllerManager,
+    renderer,
+  );
   const camera = new CameraSystem(renderer.domElement, controllerManager);
   const touch = new TouchControls(controllerManager);
   let cameraIndex = 0;
@@ -58,7 +97,7 @@ async function init() {
       place,
       LANDMARK_VIEWS[place.id],
       city.colliders,
-      place.id === "wheel" ? 4 : heightAt(place.x, place.z),
+      place.id === "wheel" ? 4 : terrainHeightAt(place.x, place.z),
     );
   let selectedView = viewFor(selectedPlace);
   const cycleCamera = () => {
@@ -77,11 +116,35 @@ async function init() {
   const gamepad = new GamepadControls(controllerManager, camera, {
     onCycleCamera: cycleCamera,
     onCycleMode: (step) =>
-      selectMode(modes[(modes.indexOf(controllerManager.activeMode) + step + 4) % 4]),
+      selectMode(
+        modes[(modes.indexOf(controllerManager.activeMode) + step + 4) % 4],
+      ),
     onToggleMap: () => (map.dialog.open ? map.dialog.close() : map.open()),
     onCloseMap: () => map.dialog.close(),
   });
-  const map = new SeattleMap(data, controllerManager, teleport);
+  const map = new SeattleMap(data, controllerManager, travelTo, () =>
+    stream.atlas(),
+  );
+  async function travelTo(x, z, heading = Math.PI) {
+    if (traveling) return false;
+    traveling = true;
+    controllerManager.resetInput();
+    touch.reset();
+    gamepad.reset();
+    showTravelStatus("Loading neighborhood…");
+    try {
+      await stream.ensure(x, z);
+      const road = nearestRoad(data, x, z);
+      teleport(road.x, road.z, heading);
+      showTravelStatus("");
+      return true;
+    } catch (error) {
+      showTravelStatus(error.message);
+      return false;
+    } finally {
+      traveling = false;
+    }
+  }
   function teleport(x, z, heading = Math.PI) {
     controllerManager.teleportActiveTo(x, z, heading);
     touch.reset();
@@ -98,13 +161,16 @@ async function init() {
     gamepad.reset();
     const road = nearestRoad(data, p.x, p.z);
     teleport(road.x, road.z, road.heading);
-    if (mode === "helicopter") controllerManager.getActiveEntity().position.y = Math.max(p.y, 150);
+    if (mode === "helicopter")
+      controllerManager.getActiveEntity().position.y = Math.max(p.y, 150);
     renderMode(mode);
   }
   function renderMode(mode) {
     document
       .querySelectorAll("button[data-mode]")
-      .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+      .forEach((b) =>
+        b.setAttribute("aria-pressed", String(b.dataset.mode === mode)),
+      );
     $("mode-label").textContent = modeNames[mode];
     $("control-hint").innerHTML =
       mode === "helicopter"
@@ -116,7 +182,11 @@ async function init() {
   const start = DESTINATIONS[0];
   for (const [i, mode] of modes.entries()) {
     controllerManager.setMode(mode);
-    const road = nearestRoad(data, start.arrival.x + i * 22, start.arrival.z + i * 20);
+    const road = nearestRoad(
+      data,
+      start.arrival.x + i * 22,
+      start.arrival.z + i * 20,
+    );
     controllerManager.teleportActiveTo(
       road.x,
       road.z,
@@ -128,7 +198,10 @@ async function init() {
   touch.setMode("helicopter");
   const heli = controllerManager.getActiveEntity();
   heli.position.set(start.x - 100, 190, start.z + 240);
-  heli.heading = Math.atan2(start.x - heli.position.x, start.z - heli.position.z);
+  heli.heading = Math.atan2(
+    start.x - heli.position.x,
+    start.z - heli.position.z,
+  );
   // Restore only finite, bounded Seattle state; never import the upstream New York save slot.
   try {
     const saved = JSON.parse(localStorage.getItem("slop-seattle-player-v1"));
@@ -136,13 +209,21 @@ async function init() {
       saved &&
       modes.includes(saved.mode) &&
       [saved.x, saved.z, saved.heading, saved.y].every(Number.isFinite) &&
-      Math.abs(saved.x) < 8000 &&
-      Math.abs(saved.z) < 8500
+      saved.x >= BOUNDS.minX - 6000 &&
+      saved.x <= BOUNDS.maxX + 6000 &&
+      saved.z >= BOUNDS.minZ - 6000 &&
+      saved.z <= BOUNDS.maxZ + 6000
     ) {
       controllerManager.setMode(saved.mode);
+      await stream.ensure(saved.x, saved.z);
       teleport(saved.x, saved.z, saved.heading);
       if (saved.mode === "helicopter")
-        controllerManager.teleportActiveTo(saved.x, saved.z, saved.heading, saved.y);
+        controllerManager.teleportActiveTo(
+          saved.x,
+          saved.z,
+          saved.heading,
+          saved.y,
+        );
       touch.setMode(saved.mode);
       renderMode(saved.mode);
     }
@@ -173,9 +254,9 @@ async function init() {
     const area = document.createElement("small");
     area.textContent = d.area;
     button.append(name, area);
-    button.addEventListener("click", () => {
-      const p = nearestRoad(data, d.arrival.x, d.arrival.z);
-      teleport(p.x, p.z, d.arrival.heading);
+    button.addEventListener("click", async () => {
+      if (!(await travelTo(d.arrival.x, d.arrival.z, d.arrival.heading)))
+        return;
       selectedPlace = d;
       selectedView = viewFor(d);
       cameraIndex = cameras.indexOf("landmark");
@@ -187,7 +268,9 @@ async function init() {
   }
   document
     .querySelectorAll("button[data-mode]")
-    .forEach((b) => b.addEventListener("click", () => selectMode(b.dataset.mode)));
+    .forEach((b) =>
+      b.addEventListener("click", () => selectMode(b.dataset.mode)),
+    );
   $("camera-button").addEventListener("click", cycleCamera);
   $("map-button").addEventListener("click", () => map.open());
   $("radar").addEventListener("click", () => map.open());
@@ -203,7 +286,9 @@ async function init() {
   });
   document
     .querySelectorAll("[data-close]")
-    .forEach((b) => b.addEventListener("click", () => $(b.dataset.close).close()));
+    .forEach((b) =>
+      b.addEventListener("click", () => $(b.dataset.close).close()),
+    );
   for (const id of ["atlas", "help"])
     $(id).addEventListener("close", () => {
       controllerManager.resetInput();
@@ -213,7 +298,13 @@ async function init() {
   const applyTime = () => lighting.applyPreset($("time-select").value);
   $("time-select").addEventListener("change", applyTime);
   document.addEventListener("keydown", (e) => {
-    if (e.target.matches("input,select,textarea") || e.metaKey || e.ctrlKey || e.altKey || e.repeat)
+    if (
+      e.target.matches("input,select,textarea") ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.altKey ||
+      e.repeat
+    )
       return;
     if (e.key.toLowerCase() === "m") {
       e.preventDefault();
@@ -223,7 +314,9 @@ async function init() {
     if (map.dialog.open || $("help").open) return;
     if (/^[1-4]$/.test(e.key)) selectMode(modes[Number(e.key) - 1]);
     if (e.key.toLowerCase() === "v") cycleCamera();
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key))
+    if (
+      ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)
+    )
       e.preventDefault();
   });
   window.addEventListener("resize", () => {
@@ -244,8 +337,10 @@ async function init() {
         heading: e.heading,
         camera: cameras[cameraIndex],
         time: lighting.activePresetId,
-        buildings: city.buildingCount,
+        buildings: city.buildingCount + stream.stats().buildings,
         roads: data.roads.length,
+        streaming: stream.stats(),
+        gpu: { ...renderer.info.memory },
         visuals: city.visualStats(),
         startupMs: readyAt === null ? null : Math.round(readyAt - startedAt),
         shaderCompileMs,
@@ -273,7 +368,7 @@ async function init() {
     gamepad.setEnabled(!modal);
     touch.setEnabled(!modal);
     gamepad.update(dt);
-    if (!modal) {
+    if (!modal && !traveling) {
       controllerManager.update(dt, elapsed);
     } else controllerManager.resetInput();
     if (
@@ -302,6 +397,7 @@ async function init() {
       );
     }
     lighting.update(camera.currentPos);
+    if (!traveling) stream.update(controllerManager.getActiveEntity().position);
     city.update(elapsed, readyAt === null ? null : camera.currentPos);
     updatePlayerMaterials();
     renderer.render(scene, camera.camera);
@@ -319,7 +415,8 @@ async function init() {
       $("location-label").textContent =
         cameras[cameraIndex] === "landmark"
           ? selectedPlace.name
-          : Math.hypot(landmark.x - p.position.x, landmark.z - p.position.z) < 240
+          : Math.hypot(landmark.x - p.position.x, landmark.z - p.position.z) <
+              240
             ? landmark.name
             : near.name;
       $("speed").textContent = Math.round(Math.abs(p.speed) * 2.237);
@@ -332,6 +429,10 @@ async function init() {
       readyAt = performance.now();
       document.body.dataset.ready = "true";
       $("loading-overlay").hidden = true;
+      // Coarse north skyline arrives after the first interactive frame, never on the boot critical path.
+      requestAnimationFrame(() =>
+        stream.loadOverview().catch((error) => showTravelStatus(error.message)),
+      );
     }
   });
 }

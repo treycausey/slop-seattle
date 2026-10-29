@@ -1,6 +1,28 @@
 # Slop Seattle acceptance
 
-Single acceptance record for the Seattle fork. The source snapshot contains 4,490 OSM buildings; custom landmark replacements reduce the generated generic building count. Geographic coverage is downtown, Seattle Center, South Lake Union, Pioneer Square, and SoDo. Terrain, shoreline, and landmark architecture are stylized.
+Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
+
+## North Seattle expansion — 2026-10-29
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Start downtown | First frame does not wait for north footprints; distant north has inexpensive silhouettes | Loading failures remain readable | Request assertions: no full north tiles on boot; 56 KiB overview loads after first frame | Passed |
+| Choose the ten north Places | Correct neighborhood, recognizable procedural landmark and clear composed view | Travel waits for local geometry/colliders; movement exits the view | All 18 Places exercised through buttons on native WebGPU and WebGL; desktop/mobile captures | Passed |
+| Cross the Ship Canal | Survey-aligned Fremont, Ballard, Aurora and University decks carry ground travel | Water banks reject ground arrivals and constrain movement | Street-centerline regression failed for the old University placement, then passed; water/bank/deck contracts; atlas-to-Ballard walking flow | Passed |
+| Inspect residential blocks and parks | Footprints retain courtyards, houses have visible pitched roofs, park lawns follow terrain and preserve lake holes | Triangulation and outward normals are tested | Courtyard import, Green Lake hole, sky-facing roof regression and rendered review | Passed |
+| Load an unavailable neighborhood | Current position is retained and a readable retry instruction appears | Selecting the Place again succeeds and clears the error | Injected HTTP 503 followed by real successful retry on both backends; injected routing removed | Passed |
+| Tour eight north neighborhoods twice | At most four full regions plus the fixed nine-slot detail pool remain resident | Eviction drops CPU references, geometry, instances and render-object bindings | 16 visits/backend; bounded region count, scene geometry, GPU counters and collected heap | Passed |
+| Verify source/data budget | No image/model downloads; complete north snapshot stays small and loads independently | Permanent budgets reject oversized source or tiles | 87 gzip regions, 4,870,305 bytes total, largest 122,877 bytes; atlas 229,581 bytes; overview 57,599 bytes; Seattle JS below 44 KiB gzip | Passed |
+| Validate inherited behavior | Original scene regression suite and Seattle controls, time, map, save and touch paths work | Test failures block release | Permanent suite, full native/WebGL browser suites, separate native/WebGL north memory runs | Passed |
+| Publish the exact tested implementation | Main and public Pages serve this expansion and can reach a north Place | Verify served hashes and rendered public target | Pending release verification | Pending |
+
+Isolated north memory runs on this Mac: WebGPU first frame 1,278 ms; WebGL 1,130 ms. After the two tours, reported GPU memory was 106,254,967 / 63,462,453 bytes respectively. WebGPU collected heap moved from 90,090,372 to 88,632,556 bytes; WebGL from 43,760,900 to 45,411,976. Native geometry/texture/program counts stayed equal; one additional previously unused bin in the fixed detail pool acquired a 16 KiB matrix buffer. WebGL counters stayed exactly equal. The sampled walking frame median and p95 were 16.7 ms on both backends. Maximum observed long tasks were 103 / 107 ms. Whole-tile construction took roughly 0.2–0.52 seconds elapsed, spread over animation frames; this is not a single blocking task or a physical-phone guarantee.
+
+The first revisit regression exposed +1,125 retained uniform buffers per tour when only geometry was disposed. The pinned renderer's `RenderObject` implementation requires an object disposal event to release bindings; eviction now sends it. Geometry, texture and program counters are compared exactly, while GPU growth is bounded by the existing 54-bin detail pool, whose buffers allocate lazily. Desktop shadow tiles are capped at 1536 px and narrow-screen tiles at 1024 px; terrain and procedural material detail remain in place.
+
+A cold development-server run encountered a local HTTP connection reset before initialization, matching the pre-existing module-load reporting limitation in [issue 2](https://github.com/treycausey/slop-seattle/issues/2). Fresh full runs passed. The north stress harness raises Python's server listen backlog for its larger module fan-out. No production backend, physical iPhone, or navigation accuracy claim is made.
+
+## Initial Seattle remix — 2026-10-28
 
 | Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
 | --- | --- | --- | --- | --- |

@@ -1,5 +1,7 @@
 # Nearby procedural detail
 
+The north Seattle integration calls `setData(data)` whenever the four-region footprint set changes, so detail indexes release evicted records while reusing their fixed GPU pool. Region geometry also dispatches object disposal events: in the pinned Three.js WebGPU renderer, disposing geometry alone leaves render-object uniform bindings alive. The north revisit test reproduces and guards that leak. The measurements below describe the preceding downtown detail release; current expansion measurements are in `ACCEPTANCE.md`.
+
 This layer adds benches with slats and feet, planters, layered street/park trees, street lamps, cycle stands, litter bins, curbside cars, footprint-following parapets, entrance canopies, and rooftop vents/ducts/fins. Landmark additions include observation-deck railings, Market produce, pier rails, Smith Tower pilasters, and goalposts. Water has filtered moving crest flecks. Everything is code/shader geometry using existing materials; no image/model downloads or extra generated textures.
 
 ## Integration contract

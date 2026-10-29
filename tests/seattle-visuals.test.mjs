@@ -3,9 +3,12 @@ import test from "node:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { DESTINATIONS, LANDMARK_VIEWS } from "../js/seattle-config.js";
-import { resolveLandmarkView, viewSegmentBlocked } from "../js/seattle-viewpoints.js";
+import {
+  resolveLandmarkView,
+  viewSegmentBlocked,
+} from "../js/seattle-viewpoints.js";
 
-test("procedural Seattle source stays below 28 KiB gzip, without texture or model downloads", () => {
+test("expanded procedural Seattle source stays below 44 KiB gzip, without texture or model downloads", () => {
   const directory = new URL("../js/", import.meta.url),
     names = readdirSync(directory).filter((n) => /^seattle.*\.js$/.test(n));
   let bytes = 0;
@@ -17,7 +20,10 @@ test("procedural Seattle source stays below 28 KiB gzip, without texture or mode
       /(?:TextureLoader|GLTFLoader|OBJLoader|\.load\(['"]https?:)/,
     );
   }
-  assert.ok(bytes < 28 * 1024, `Seattle JS budget exceeded: ${bytes} compressed bytes`);
+  assert.ok(
+    bytes < 44 * 1024,
+    `Seattle JS budget exceeded: ${bytes} compressed bytes`,
+  );
   console.log(
     JSON.stringify({
       seattleJavaScriptGzipBytes: bytes,
@@ -30,7 +36,14 @@ test("procedural Seattle source stays below 28 KiB gzip, without texture or mode
 test("architectural views reject neighboring towers and keep the target building visible", () => {
   const place = { id: "spheres", name: "The Spheres", x: 0, z: 0 },
     view = { eye: [65, 85, 125], target: [0, 15, 0] };
-  const neighbor = { minX: 20, maxX: 80, minZ: 30, maxZ: 110, minY: 0, maxY: 180 };
+  const neighbor = {
+    minX: 20,
+    maxX: 80,
+    minZ: 30,
+    maxZ: 110,
+    minY: 0,
+    maxY: 180,
+  };
   assert.equal(
     viewSegmentBlocked(view.eye, view.target, neighbor),
     true,
@@ -48,7 +61,10 @@ test("architectural views reject neighboring towers and keep the target building
   const resolved = resolveLandmarkView(place, view, [neighbor, own], 0);
   assert.equal(resolved.clear, true);
   assert.notDeepEqual(resolved.eye, view.eye);
-  assert.equal(viewSegmentBlocked(resolved.eye, resolved.target, neighbor), false);
+  assert.equal(
+    viewSegmentBlocked(resolved.eye, resolved.target, neighbor),
+    false,
+  );
   assert.deepEqual(resolved.target, view.target);
 });
 

@@ -1,7 +1,7 @@
 // Transform a saved Overpass `out geom` response into the offline city snapshot.
 // Usage: bun run tools/build-seattle.mjs tmp/seattle-osm.json
 import { readFileSync, writeFileSync } from "node:fs";
-import { project, BOUNDS, shoreAt } from "../js/seattle-config.js";
+import { project, CORE_BOUNDS as BOUNDS, shoreAt } from "../js/seattle-config.js";
 const input = process.argv[2];
 if (!input) throw new Error("Supply a saved Overpass JSON response");
 const source = JSON.parse(readFileSync(input, "utf8"));

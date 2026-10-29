@@ -28,7 +28,8 @@ export function viewSegmentBlocked(eye, target, box, margin = 1.5) {
     high = Math.min(0.995, far),
     dx = target[0] - eye[0],
     dz = target[2] - eye[2];
-  const inside = (t) => polygonContains(box.polygon, eye[0] + dx * t, eye[2] + dz * t);
+  const inside = (t) =>
+    polygonContains(box.polygon, eye[0] + dx * t, eye[2] + dz * t);
   if (inside(low) || inside(high)) return true;
   for (const ring of [box.polygon.outer, ...box.polygon.holes])
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -47,9 +48,15 @@ export function viewSegmentBlocked(eye, target, box, margin = 1.5) {
   return false;
 }
 export function resolveLandmarkView(place, view, colliders, baseHeight) {
-  const target = [place.x + view.target[0], baseHeight + view.target[1], place.z + view.target[2]];
+  const target = [
+    place.x + view.target[0],
+    baseHeight + view.target[1],
+    place.z + view.target[2],
+  ];
   const blockers = colliders.filter((c) => c.landmark !== place.name);
-  const radius = place.id === "spheres" ? 30 : place.id === "market" ? 27 : 12;
+  const radius =
+    view.radius ??
+    (place.id === "spheres" ? 30 : place.id === "market" ? 27 : 12);
   const anchors = [
     [0, 0, 0],
     [-radius, 0, 0],
@@ -57,7 +64,8 @@ export function resolveLandmarkView(place, view, colliders, baseHeight) {
     [0, 0, -radius],
     [0, 0, radius],
   ].map((p) => p.map((v, i) => v + target[i]));
-  const clear = (eye) => anchors.every((t) => !blockers.some((b) => viewSegmentBlocked(eye, t, b)));
+  const clear = (eye) =>
+    anchors.every((t) => !blockers.some((b) => viewSegmentBlocked(eye, t, b)));
   for (const rise of [0, 35, 80, 140, 220, 340])
     for (const angle of [0, -0.55, 0.55, -1.1, 1.1, -1.65, 1.65, Math.PI]) {
       const cs = Math.cos(angle),

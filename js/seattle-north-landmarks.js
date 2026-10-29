@@ -26,12 +26,45 @@ function troll(g, p) {
   sphere(g, p.concrete, 4, 2, 3, 4, 2.5, 4);
   sphere(g, p.concrete, 0, 5.4, 2, 4.4, 3.8, 3.4);
   sphere(g, p.concrete, -0.4, 4.5, 5.6, 1.5, 2.4, 1.7);
-  sphere(g, p.dark, -1.9, 6, 4.4, 0.9, 0.55, 0.5);
-  sphere(g, p.steel, 1.6, 6, 4.4, 0.85, 0.7, 0.6);
+  for (const x of [-1.7, 1.6]) {
+    const brow = sphere(g, p.concrete, x, 7, 4.4, 1.9, 0.75, 1.1);
+    brow.rotation.z = x < 0 ? -0.25 : 0.25;
+  }
+  sphere(g, p.dark, -0.95, 3.6, 6.7, 0.35, 0.25, 0.2);
+  sphere(g, p.dark, 0.4, 3.6, 6.7, 0.35, 0.25, 0.2);
+  sphere(g, p.dark, -1.9, 6, 4.8, 0.8, 0.45, 0.2);
+  const eye = new THREE.Group();
+  eye.position.set(1.6, 6, 4.8);
+  eye.userData.dynamic = true;
+  g.add(eye);
+  sphere(eye, p.steel, 0, 0, 0, 0.8, 0.7, 0.45);
+  const pupil = sphere(eye, p.dark, 0, 0, 0.43, 0.22, 0.3, 0.12);
+  sphere(eye, p.white, -0.24, 0.2, 0.38, 0.17, 0.14, 0.1);
+  g.userData.trollEye = eye;
+  g.userData.trollPupil = pupil;
+  for (let i = 0; i < 7; i++)
+    sphere(
+      g,
+      p.dark,
+      -2.3 + i * 0.65,
+      2.9 + Math.sin((i / 6) * Math.PI) * 0.25,
+      5.1,
+      0.38,
+      0.13,
+      0.15,
+    );
   for (const x of [-2.5, -1.2, 0.1, 1.4])
     sphere(g, p.concrete, x, 0.6, 7, 0.7, 0.6, 2.2);
-  sphere(g, p.copper, 4.9, 0.8, 5.4, 1.3, 0.9, 2.5);
-  sphere(g, p.dark, 4.9, 1.4, 5.2, 1, 0.6, 1.3);
+  const car = new THREE.Group();
+  g.add(car);
+  car.position.set(4.9, 0, 5.4);
+  car.rotation.y = -0.3;
+  sphere(car, p.copper, 0, 0.7, 0, 1.2, 0.7, 2.4);
+  sphere(car, p.copper, 0, 1.35, -0.1, 1, 0.7, 1.45);
+  sphere(car, p.dark, 0, 1.6, 0.5, 0.9, 0.38, 0.8);
+  box(car, p.steel, 0, 0.35, 2.3, 2.3, 0.18, 0.2);
+  for (const x of [-0.8, 0.8])
+    sphere(car, p.white, x, 0.8, 2.1, 0.26, 0.25, 0.15);
   for (const x of [3.6, 6.2])
     for (const z of [4.1, 6.8]) {
       const w = cylinder(g, p.dark, x, 0, z, 0.5, 0.5, 0.25, 12);
@@ -45,6 +78,7 @@ function troll(g, p) {
     "one-eyed concrete troll, broad hand, crushed green Volkswagen under Aurora Bridge";
 }
 function rocket(g, p) {
+  g.userData.dynamic = true;
   cylinder(g, p.white, 0, 3, 0, 1.9, 2.8, 12, 24);
   cylinder(g, p.copper, 0, 15, 0, 0, 1.9, 6, 24);
   for (let i = 0; i < 4; i++) {

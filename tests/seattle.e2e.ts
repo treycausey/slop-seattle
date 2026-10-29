@@ -330,7 +330,7 @@ try {
         "4 modes",
         "keyboard movement",
         "helicopter climb",
-        "18 destinations",
+        "19 destinations",
         "time presets",
         "map search",
         "map travel",

@@ -258,7 +258,9 @@ export class SeattleMap {
   }
   draw() {
     const p = this.controllers.getActiveEntity().position;
-    this.drawMap(this.radar, { x: p.x, z: p.z, scale: 0.28 }, false);
+    const heading=this.controllers.getActiveEntity().heading,
+      key=[p.x,p.z,heading,this.data.revision??0,this.query,this.radar.width,this.radar.height].join(":");
+    if(key!==this.radarKey){this.radarKey=key;this.drawMap(this.radar, { x: p.x, z: p.z, scale: 0.28 }, false);}
     if (this.dialog.open) this.drawMap(this.canvas, this.mapView, true);
   }
 }

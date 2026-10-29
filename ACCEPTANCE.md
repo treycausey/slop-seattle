@@ -2,6 +2,51 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Deeper street detail and performance — 2026-10-29
+
+The selected tradeoff keeps full nearby detail and simplifies distant shading. Fire escapes add three landings, posts, handrails and rung ladders; storefronts gain frames and planted window boxes; tree guards, slotted drains, bin openings and car lights/bumpers/mirrors add smaller scale. No geometry, antialiasing or drawing-resolution reduction is used to obtain the measurements below. Distant background clouds reuse the environment bake and refresh with lighting presets.
+
+| Action | Expected visible or saved result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Explore nearby streets | New small geometry with the original nearby material detail | Nine CPU slots pack into six shared material meshes; existing matrix cap remains | Real Places → Walk/first-person flow on both backends; inspected fire-escape/flower-box close-up on an actual footprint near the Market; deterministic finite/capped planning | Passed |
+| Approach a facade or surface | Full shading within 80 m, smooth transition from 80–100 m, filtered windows/night lights beyond | Whole nearby material setup is retained; subpixel interior work is gated | Real GPU pixel comparisons against original road/paving expressions and full stone/facade material setup, on both backends | Passed |
+| Preserve shadows and animation | Original static silhouettes and moving landmarks remain correct | Position-only static sun casters share local batches; hidden, alpha-tested and animated objects retain their original path | Original/batched shadow comparison, no-shadow positive control; hidden/animated-caster regression fails before the filter fix and passes after; both thirty-discovery and Blue Angels tours | Passed |
+| Travel through northern neighborhoods | Exact footprint heights and open courtyards arrive sooner | Indexed extrusion, exact shoreline-distance index, 4 ms construction scheduling and completed-region reveal | Courtyard/winding and real-shoreline regressions; isolated build samples below; all destination and failed-load/retry flows | Passed |
+| Revisit and dispose | Stable resource counts, bounded heap, no old source retention | Region disposal releases objects and geometry; detail pools reset counts and indexes | Both north tours: exact GPU counts across rounds; 884,736 instance bytes and six bins; repeated replacement, empty input and double disposal | Passed |
+| Reach the 2× rendering target | At least half the previous frame-work cost in the measured workload | Preserve nearby fidelity and report CPU-limited cases separately | All six 4K WebGPU views exceed 2×; aggregate 2.49×. Smaller Retina WebGPU is 1.50×, WebGL 1.17×; walking 1.08× | Passed at 4K; below 2× in lighter/nearby workloads |
+| Bound source and downloads | No downloaded texture/model assets; explicit code ceiling | Seattle-specific JS ceiling grows from 64 to 70 KiB for the new geometry, index and shading helpers | 69,612 gzip bytes (+6,395 versus the current Blue Angels/30-discovery release); request assertions on both backends; 232 permanent tests | Passed |
+| Publish exact tested sources | Public new detail and both renderers work | Compare served hashes and exercise actual controls after Pages deployment | Pending publication | Pending |
+
+### Isolated rendering measurements
+
+Chrome 156 on this M2 Max Mac with 32 GiB memory. Baseline runtime is `0e2be0b` (the runtime at the subsequent `f81c1c4` documentation release). Both versions use the same pinned engine, full drawing dimensions, controls, geographic data, thirty discoveries and Blue Angels mode. Five batches of 120 full update/render steps per view, with a GPU queue fence, run sequentially through the same Playwright 1.64.1 harness. Each view's median batch cost contributes equally to the tour mean. This measures rendering headroom, rather than displayed FPS at the monitor's refresh cap.
+
+| Workload | Previous mean ms/frame | New mean ms/frame | Speedup |
+| --- | ---: | ---: | ---: |
+| Moving scenic tour, WebGPU, 3840×2160 drawing buffer | 4.457 | 1.788 | **2.49×** |
+| Moving scenic tour, WebGPU, 2160×1500 drawing buffer | 2.163 | 1.445 | **1.50×** |
+| Moving scenic tour, WebGL, 2160×1500 drawing buffer | 0.962 | 0.826 | **1.17×** |
+| Actual held-W walking, WebGPU, 2160×1500 drawing buffer | 2.436 | 2.256 | **1.08×** |
+
+| 4K WebGPU view | Previous ms/frame | New ms/frame | Speedup |
+| --- | ---: | ---: | ---: |
+| Space Needle | 4.347 | 1.643 | 2.65× |
+| Pike Place Market | 5.047 | 2.322 | 2.17× |
+| Columbia Center | 5.337 | 1.572 | 3.39× |
+| Greenwood | 5.032 | 2.402 | 2.10× |
+| Gas Works | 3.163 | 1.429 | 2.21× |
+| Ballard Locks | 3.814 | 1.361 | 2.80× |
+
+The same 4K tour's final region-build samples were Greenwood **321 → 100 ms**, Gas Works **504 → 99 ms**, and Locks **200 → 44 ms**: 3.2–5.1× faster elapsed construction, including scheduled yields. These are distinct from rendering gains. The 2× result does not extend to every viewport, backend or close-range scene. A masked-out nearby-surface experiment made no measurable throughput improvement and was removed; the original nearby formulas remain.
+
+North revisit counters were identical between rounds: WebGPU **109,435,989** reported GPU bytes, WebGL **58,480,406**. Collected heaps changed from 99,007,056 to 99,362,800 bytes and 45,060,204 to 45,250,492 respectively. These functional/memory tours ran alongside other checks; their wall/frame timings are not used for the isolated comparison above. Physical iPhone/Safari performance remains unobserved.
+
+Nearby road, paving and stone comparisons were pixel-identical on WebGPU; masonry/glass facade RMS differences were 0.081/0.123 on an 8-bit channel scale. WebGL's largest RMS difference was 0.263. Batched static shadows differed by RMS 0.340, with 0.0016% of pixels over the test's 8-channel threshold, while disabling shadows changed 6.26% of pixels, confirming a visible-shadow test. A separate caster fixture rejects hidden materials, hidden ancestors and animated roots. Full app, details, north streaming, discoveries and formation-flight flows passed on both backends.
+
+Three concurrent suites initially printed PASS but hung during Chrome cleanup with Playwright 1.56.1. Aligning the test dependency with kit's 1.64.1 development version resolved the observed hang; all three reruns exited successfully. The old test processes and their servers were stopped and verified absent. This affected the validation harness, not the shipped client. No commit/publish claim is made by an assertion log alone.
+
+The runtime-source fingerprint for the measured candidate is `2d824d25bdd217ab54832c181ae0c9f9bcfe305b64cc98819abc15017f5bdb98`. Raw reports are named `perf-release-*`; [DETAILS.md](DETAILS.md) documents reproduction and diagnostic timestamp limitations. The 70 KiB ceiling is the sum of Seattle-specific module gzip sizes, not total page weight; shared material helpers and the engine are separate.
+
 ## Blue Angels mode — 2026-10-29
 
 A fifth travel mode adds four blue-and-gold procedural jets in a diamond. It uses existing keyboard, touch and standard-gamepad input, with separate arcade flight/camera code. The original controllers, player models and Manhattan camera module are unchanged. Model geometry is instanced by material; smoke uses a fixed 64-sample ring per jet and one ribbon draw. Only mode selection/restoration imports the feature; mode exit disposes it.

@@ -7,6 +7,7 @@ import {
   vec4,
   color,
   uniform,
+  renderGroup,
   attribute,
   varying,
   positionGeometry,
@@ -204,6 +205,12 @@ const canyonSkyAONode = Fn(() => {
 // Material caches to prevent duplicate WebGPU WGSL shader compilation across blocks & landmarks
 const _curtainWallCache = new Map();
 const _preWarCache = new Map();
+let seattleInteriorLOD = false;
+function enableSeattleInteriorLOD() {
+  seattleInteriorLOD = true;
+  // These values are global to a render, not to an individual building.
+  for (const node of Object.values(cityUniforms)) node.setGroup(renderGroup);
+}
 
 // Camera-independent facade frame: the view/world normal round trip can change the dominant axis on 45-degree
 // walls. Resolve near-ties in the vertex shader and keep that choice flat across each face.
@@ -385,6 +392,18 @@ const evaluateApartmentInterior = Fn(([uCoord, vCoord, winUV, cellId, winWNode, 
 });
 
 // Street fronts have shops, courtyard walls have windows, and shared lot-line walls are solid masonry.
+const evaluateVisibleInterior = Fn((args) => {
+  const [u,v,winUV,cellId,width,height,seed,warmth,probability,fw]=args;
+  const pixel=max(fw.x,fw.y),blend=smoothstep(0.10,0.25,pixel);
+  const grid=vec2(u.div(width),v.div(height));
+  const lit=distantWindowLight(grid,fw,probability,seed,float(1));
+  const tint=mix(color(0xb3c5db),color(0xc8ad85),warmth);
+  const result=vec4(tint.mul(0.46),lit.mul(0.768)).toVar();
+  If(pixel.lessThan(0.25).and(winUV.x.greaterThan(0)).and(winUV.x.lessThan(1)).and(winUV.y.greaterThan(0)).and(winUV.y.lessThan(1)),()=>{
+    result.assign(mix(evaluateApartmentInterior(...args),result,blend));
+  });
+  return result;
+});
 const WALL_KINDS = { shop: 0, rear: 2, lotLine: 3 };
 
 /**
@@ -511,6 +530,7 @@ function createCurtainWallMaterial(opts = {}) {
 
   // The style's parameters are uniforms (not baked-in constants), so every curtain-wall style compiles to one shader
   const cGlass = uniform(new THREE.Color(glassTint));
+  mat.userData.facadeStyle={tint:glassTint,width:windowWidth,height:floorHeight,seed,ratio:1-mullionThickness,vertical:1-spandrelRatio,minY:spandrelRatio+0.015,maxY:1-mullionThickness*0.5};
   const cFrame = uniform(new THREE.Color(frameTint));
   const uWindowWidth = uniform(windowWidth);
   const uFloorHeight = uniform(floorHeight);
@@ -536,7 +556,7 @@ function createCurtainWallMaterial(opts = {}) {
     vec2(0.0),
     vec2(1.0)
   );
-  const aptRoom = evaluateApartmentInterior(uCoord, vCoord, winUV, cellId, bayWidth, uFloorHeight, uSeed, uWarmth, uLitProbability.mul(0.65), fw);
+  const aptRoom = (seattleInteriorLOD ? evaluateVisibleInterior : evaluateApartmentInterior)(uCoord, vCoord, winUV, cellId, bayWidth, uFloorHeight, uSeed, uWarmth, uLitProbability.mul(0.65), fw);
   const shopLit = step(0.24, hash2D(cellId.add(vec2(uSeed, 19.4))));
   const floorIdx = floor(gridV);
   const isMechFloor = float(1.0).sub(step(1.0, mod(floorIdx.add(uSeed), 16.0))).mul(step(4.0, floorIdx));
@@ -703,6 +723,7 @@ function createPreWarBuildingMaterial(opts = {}) {
 
   // The style's parameters are uniforms (not baked-in constants), so every masonry style compiles to one shader
   const cStone = uniform(new THREE.Color(stoneColor));
+  mat.userData.facadeStyle={tint:stoneColor,glass:false,width:windowWidth,height:floorHeight,seed,ratio:windowRatioX,vertical:windowRatioY};
   const cTrim = uniform(new THREE.Color(trimColor));
   const cGlass = uniform(new THREE.Color(windowGlassColor));
   const cCrown = uniform(new THREE.Color(crownGlowColor));
@@ -740,7 +761,7 @@ function createPreWarBuildingMaterial(opts = {}) {
     vec2(0.0),
     vec2(1.0)
   );
-  const aptRoom = evaluateApartmentInterior(uCoord, vCoord, winUV, cellId, bayWidth, uFloorHeight, uSeed, uWarmth, uLitProbability.mul(0.62), fw);
+  const aptRoom = (seattleInteriorLOD ? evaluateVisibleInterior : evaluateApartmentInterior)(uCoord, vCoord, winUV, cellId, bayWidth, uFloorHeight, uSeed, uWarmth, uLitProbability.mul(0.62), fw);
   const shopLit = step(0.24, hash2D(cellId.add(vec2(uSeed, 19.4))));
   const bulbCol = mix(cCoolWindow, cWarmWindow, step(float(1.0).sub(uWarmth), hash2D(cellId.add(vec2(uSeed.mul(1.9), 83.1)))));
   // Window AC units (~12% of upper-floor windows), none in the floor the band course covers
@@ -3179,6 +3200,8 @@ function createCarFlareMaterial() {
 }
 
 export {
+  facadeAlongZ,
+  enableSeattleInteriorLOD,
   bumpNormal,
   noise2D,
   hash2D,

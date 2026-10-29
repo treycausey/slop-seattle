@@ -161,6 +161,17 @@ export function planDetailTile(grid, tx, tz) {
         } else {
           local("dark", 0, 0, 0, 0.6, 0.9, 0.6);
           local("steel", 0, 0.87, 0, 0.66, 0.08, 0.66);
+          for(const slit of [-0.2,0,0.2])local("steel",slit,0.35,0.305,0.06,0.45,0.025);
+        }
+        // Raised tree guards and recessed curb drains, with individual iron slots.
+        if(pick===1)for(const side of [-1,1]) {
+          local("dark",side*0.7,0.55,0,0.07,0.06,1.5);
+          local("dark",0,0.55,side*0.7,1.5,0.06,0.07);
+          for(const corner of [-1,1])local("dark",side*0.7,0,corner*0.7,0.07,0.6,0.07);
+        }
+        if(pick===2) {
+          local("dark",-side*1.45,0.015,1.4,0.65,0.04,0.9);
+          for(let slit=0;slit<6;slit++)local("steel",-side*1.45,0.055,1.05+slit*0.14,0.55,0.015,0.045);
         }
         // A few curbside cars, kept clear of junctions and footprints.
         if (hash(seed + 91) < 0.18 && r.width >= 9) {
@@ -178,6 +189,14 @@ export function planDetailTile(grid, tx, tz) {
             const py = heightAt(px, pz) + 0.27;
             put("white", px, py + 0.25, pz, 1.7, 0.65, 3.9, yaw);
             put("dark", px, py + 0.9, pz, 1.5, 0.6, 2.1, yaw);
+            // Glazing surrounds, bumpers, lights and small mirrors give parked cars readable scale.
+            for(const end of [-1,1]) {
+              put("steel",px+Math.sin(yaw)*end*1.95,py+0.3,pz+Math.cos(yaw)*end*1.95,1.65,0.12,0.09,yaw);
+              for(const side of [-1,1]) {
+                put("white",px+Math.cos(yaw)*side*0.56+Math.sin(yaw)*end*1.98,py+0.6,pz-Math.sin(yaw)*side*0.56+Math.cos(yaw)*end*1.98,0.32,0.2,0.03,yaw);
+              }
+            }
+            for(const side of [-1,1])put("dark",px+Math.cos(yaw)*side*0.96,py+0.95,pz-Math.sin(yaw)*side*0.96,0.22,0.16,0.3,yaw);
             for (const ex of [-0.82, 0.82])
               for (const ez of [-1.2, 1.2])
                 put(
@@ -230,6 +249,27 @@ export function planDetailTile(grid, tx, tz) {
             Math.min(6, len - 1),
             yaw,
           );
+        if(b.id%7===0 && len>9) {
+          // Deep storefront frames and an upper-floor planting box, aligned to the footprint edge.
+          for(const t of [-0.9,0.9])put("concrete",x+dx/len*t,y,z+dz/len*t,0.35,3.2,0.25,yaw);
+          const bx=x+nx*side*0.45,bz=z+nz*side*0.45;
+          put("timber",bx,y+4.1,bz,0.6,0.45,2.5,yaw);
+          for(let sprig=-1;sprig<=1;sprig++)put("leaf",bx+dx/len*sprig*0.75,y+4.5,bz+dz/len*sprig*0.75,0.7,0.7,0.7,yaw);
+        }
+        if(i===1 && b.id%11===0 && b.height>12 && len>8) {
+          // Three landings, posts, handrails and a rung ladder. Bounded to one escape per building.
+          for(let level=1;level<=3;level++) {
+            const h=y+level*3.3,ex=x+nx*side*0.8,ez=z+nz*side*0.8;
+            put("steel",ex,h,ez,1.4,0.1,2.8,yaw);
+            put("dark",x+nx*side*1.45,h+0.95,z+nz*side*1.45,0.06,0.06,2.8,yaw);
+            for(const end of [-1,1])put("dark",x+nx*side*1.45+dx/len*end*1.3,h,z+nz*side*1.45+dz/len*end*1.3,0.06,1,0.06,yaw);
+            if(level<3) {
+              const lx=ex+dx/len*1.05,lz=ez+dz/len*1.05;
+              for(const t of [-0.32,0.32])put("dark",lx+dx/len*t,h,lz+dz/len*t,0.05,3.3,0.05,yaw);
+              for(let rung=1;rung<=9;rung++)put("steel",lx,h+rung*0.33,lz,0.055,0.05,0.7,yaw);
+            }
+          }
+        }
       }
     }
     if (owns(b.x, b.z) && inside(b.ring, b.x, b.z) && b.height > 6) {

@@ -18,29 +18,20 @@ import {
   createSeattleFacades,
   surface,
 } from "./seattle-materials.js";
-import { mesh, box, cylinder, batchStatic } from "./seattle-geometry.js";
+import { mesh, box, cylinder, batchStatic, batchShadows } from "./seattle-geometry.js";
 import { buildSeattleLandmarks } from "./seattle-landmarks.js";
 import { createSeattleDetails } from "./seattle-details.js";
 import { buildNorthLandmarks } from "./seattle-north-landmarks.js";
 import { pitchedRoofPositions } from "./seattle-roofs.js";
 import { createRainier } from "./seattle-rainier.js";
+import { buildingBuffers } from "./seattle-building-buffers.js";
+import { createDistantFacades, applyFacadeLOD } from "./seattle-facade-lod.js";
 
 function extrude(ring, height, base = 0, holes = []) {
-  const shape = new THREE.Shape(
-    ring.map((p) => new THREE.Vector2(p[0], -p[1])),
-  );
-  for (const hole of holes)
-    shape.holes.push(
-      new THREE.Path(hole.map(([x, z]) => new THREE.Vector2(x, -z))),
-    );
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: height,
-    bevelEnabled: false,
-    steps: 1,
-  });
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, base, 0);
-  return geo;
+  const parts=buildingBuffers(ring,holes,height,base,(outer,inner)=>THREE.ShapeUtils.triangulateShape(outer.map(([x,z])=>new THREE.Vector2(x,z)),inner.map(r=>r.map(([x,z])=>new THREE.Vector2(x,z)))));
+  return Object.fromEntries(Object.entries(parts).map(([key,p])=>{
+    const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(p.positions,3));g.setAttribute("normal",new THREE.Float32BufferAttribute(p.normals,3));g.setIndex(p.indices);return [key,g];
+  }));
 }
 function ribbon(points, width, offset = 0.1) {
   const positions = [];
@@ -166,12 +157,14 @@ function architecturalColliders(landmarks) {
 function* buildSeattleSteps(scene, data, options = {}) {
   const chunk = !!options.chunk;
   const group = new THREE.Group();
+  group.visible=!chunk;
   group.name = "Seattle";
   scene.add(group);
   const p = options.palette ?? createSeattlePalette(),
     styles = options.styles ?? createSeattleFacades(),
     colliders = [],
     ferries = [];
+  const distantStyles=options.distantStyles??createDistantFacades(styles.map(m=>m.userData.facadeStyle));
   const details = chunk ? null : createSeattleDetails(group, p, data);
   const rainier = chunk ? null : createRainier(group);
   if (!chunk) {
@@ -186,6 +179,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
     bay.name = "Elliott Bay";
     bay.rotation.x = -Math.PI / 2;
     bay.castShadow = false;
+    bay.renderOrder=1;
     const ground = [];
     const step = 54;
     const heights = new Map();
@@ -228,6 +222,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
       geo.rotateX(-Math.PI / 2);
       const lake = mesh(group, geo, p.water, 0, water.level, 0);
       lake.castShadow = false;
+      lake.renderOrder=1;
       lake.name = water.name;
     }
   }
@@ -293,6 +288,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
       geos.forEach((g) => g.dispose());
     }
   const batches = new Map(),
+    roofSurfaces = new Map(),
     roofParts = [],
     houseRoofs = [];
   let buildingCount = 0;
@@ -308,11 +304,14 @@ function* buildSeattleSteps(scene, data, options = {}) {
       continue;
     const y = heightAt(b.x, b.z),
       footingY = Math.min(y, ...b.ring.map(([x, z]) => heightAt(x, z))),
-      g = extrude(b.ring, b.height + y - footingY, footingY, b.holes),
+      surfaces = extrude(b.ring, b.height + y - footingY, footingY, b.holes),
       style = b.height > 65 ? b.id % 3 : 3 + (b.id % 5);
-    const key = `${Math.floor(b.x / 600)}:${Math.floor(b.z / 600)}:${style}`;
+    const cell = `${Math.floor(b.x / 600)}:${Math.floor(b.z / 600)}`,
+      key = `${cell}:${style}`;
     if (!batches.has(key)) batches.set(key, { style, geos: [] });
-    batches.get(key).geos.push(g);
+    batches.get(key).geos.push(surfaces.walls);
+    if(!roofSurfaces.has(cell))roofSurfaces.set(cell,[]);
+    roofSurfaces.get(cell).push(surfaces.roof);
     const xs = b.ring.map((p) => p[0]),
       zs = b.ring.map((p) => p[1]),
       minX = Math.min(...xs),
@@ -384,12 +383,16 @@ function* buildSeattleSteps(scene, data, options = {}) {
     }
   }
   for (const { style, geos } of batches.values()) {
-    mesh(group, mergeGeometries(geos), styles[style]);
+    applyFacadeLOD(mesh(group, mergeGeometries(geos), styles[style]), distantStyles[style]);
     geos.forEach((g) => g.dispose());
   }
   if (roofParts.length) {
     mesh(group, mergeGeometries(roofParts), p.steel);
     roofParts.forEach((g) => g.dispose());
+  }
+  for(const geometries of roofSurfaces.values()) {
+    mesh(group,mergeGeometries(geometries),p.flatRoof);
+    geometries.forEach(g=>g.dispose());
   }
   if (houseRoofs.length) {
     mesh(group, mergeGeometries(houseRoofs), p.dark);
@@ -466,6 +469,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
   if (!chunk) {
     for (let i = 0; i < 2; i++) {
       const f = new THREE.Group();
+      f.userData.dynamic = true;
       group.add(f);
       box(f, p.dark, 0, 0, 0, 21, 3, 88);
       box(f, p.limestone, 0, 3, 0, 23, 3, 82);
@@ -490,12 +494,29 @@ function* buildSeattleSteps(scene, data, options = {}) {
         -22000 + i * 2000,
       );
   }
+  if(options.shadowBatch)batchShadows(group);
+  group.updateMatrixWorld(true);
+  const facadeMeshes=[];
+  group.traverse(o=>{
+    if(!o.isMesh||o.material.transparent||!o.material.userData.facadeStyle)return;
+    for(let p=o;p&&p!==group;p=p.parent)if(p.userData.dynamic)return;
+    facadeMeshes.push(o);
+  });
+  facadeMeshes.forEach(o=>applyFacadeLOD(o));
+  group.traverse(object => {
+    if(!object.isMesh)return;
+    for(let p=object;p && p!==group;p=p.parent)if(p.userData.dynamic)return;
+    object.updateMatrix();object.matrixAutoUpdate=false;object.matrixWorldAutoUpdate=false;
+  });
+  group.visible=true;
   return {
     group,
     palette: p,
     rainier,
     landmarks: landmarks?.landmarks ?? [],
     styles,
+    distantStyles,
+    shadowBatch:options.shadowBatch,
     details,
     colliders,
     buildingCount,
@@ -554,7 +575,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
         landmarks: landmarks.landmarks.map((g) => {
           let facadeMeshes = 0;
           g.traverse((o) => {
-            if (o.isMesh && styles.includes(o.material)) facadeMeshes++;
+            if (o.isMesh && (styles.includes(o.material)||styles.includes(o.userData.facadeMaterial))) facadeMeshes++;
           });
           return {
             name: g.name,
@@ -590,11 +611,13 @@ export function buildSeattle(scene, data, options = {}) {
 }
 export async function buildSeattleRegion(scene, data, options) {
   const steps = buildSeattleSteps(scene, data, { ...options, chunk: true });
-  let result;
+  let result,deadline=performance.now()+4;
   do {
     result = steps.next();
-    if (!result.done)
+    if (!result.done && performance.now()>=deadline) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
+      deadline=performance.now()+4;
+    }
   } while (!result.done);
   return result.value;
 }

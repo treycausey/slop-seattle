@@ -4,7 +4,7 @@ import { openChrome, spawnServer, minimalEnv } from "@treycausey/kit/e2e";
 const root = new URL("..", import.meta.url).pathname;
 mkdirSync(`${root}/tmp`, { recursive: true });
 const server = await spawnServer({
-  argv: (port) => ["uv", "run", "python", "-m", "http.server", String(port), "--bind", "127.0.0.1"],
+  argv: (port) => ["uv", "run", "python", "-c", `from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler; ThreadingHTTPServer.request_queue_size=128; ThreadingHTTPServer(('127.0.0.1',${port}),SimpleHTTPRequestHandler).serve_forever()`],
   cwd: root,
   env: minimalEnv(["PATH", "HOME", "UV_CACHE_DIR"]),
   healthPath: "/index.html",

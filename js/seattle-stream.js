@@ -119,6 +119,8 @@ export function createSeattleStream(city, data, onChange, onStatus) {
             chunk: true,
             palette: city.palette,
             styles: city.styles,
+            distantStyles: city.distantStyles,
+            shadowBatch:city.shadowBatch,
           });
         lastBuildMs = Math.round(performance.now() - started);
         maxBuildMs = Math.max(maxBuildMs, lastBuildMs);
@@ -185,7 +187,7 @@ export function createSeattleStream(city, data, onChange, onStatus) {
       overviewRows = await compressedJSON("overview.json.gz");
       overview = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 1, 1),
-        city.palette.concrete,
+        city.distantStyles[3],
         overviewRows.length,
       );
       overview.name = "Distant north Seattle blocks";

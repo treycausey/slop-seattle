@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { createSeattleDistantSky } from "./seattle-distant-sky.js";
 import { ThirdPersonControllerManager } from "./controllers.js";
 import { CameraSystem } from "./cameras.js";
 import { LightingSystem } from "./lighting.js";
@@ -63,7 +64,10 @@ async function init() {
     shadowTileSize: innerWidth < 700 ? 1024 : 1536,
   });
   lighting.sunLight.castShadow = renderer.backend.isWebGPUBackend;
-  const city = buildSeattle(scene, data);
+  lighting.sky.renderOrder=2;
+  const distantSky=createSeattleDistantSky(scene,lighting);
+  for(let i=0;i<lighting.sunLight.shadow.getViewportCount();i++)lighting.sunLight.shadow.getCamera(i).layers.enable(1);
+  const city = buildSeattle(scene, data,{shadowBatch:renderer.backend.isWebGPUBackend});
   status.textContent = `Preparing ${city.buildingCount.toLocaleString()} buildings and player controls…`;
   const controllerManager = new ThirdPersonControllerManager(
     scene,
@@ -469,6 +473,7 @@ async function init() {
     city.update(elapsed, readyAt === null ? null : camera.currentPos);
     secrets?.update(controllerManager.getActiveEntity().position, elapsed);
     updatePlayerMaterials();
+    distantSky.update();
     renderer.render(scene, camera.camera);
     frames++;
     hudTime += dt;

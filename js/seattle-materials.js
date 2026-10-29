@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { distantSurface } from "./seattle-facade-lod.js";
 import {
   Fn,
   float,
@@ -16,6 +17,9 @@ import {
   smoothstep,
   length,
   fwidth,
+  If,
+  cameraPosition,
+  normalViewGeometry,
 } from "three/tsl";
 import {
   bumpNormal,
@@ -27,6 +31,7 @@ import {
   createRoadSurfaceMaterial,
   createSidewalkMaterial,
   createParkLawnMaterial,
+  enableSeattleInteriorLOD,
 } from "./tsl-materials.js";
 
 const cache = new Map();
@@ -45,9 +50,8 @@ export function surface(kind, tint, metalness = 0) {
   const relief = Fn(() => {
     const p = coords(),
       pixel = length(fwidth(p));
-    const grain = noise2D(p.mul(kind === "metal" ? 70 : 22))
-      .sub(0.5)
-      .mul(smoothstep(0.12, 0.015, pixel));
+    const grain = float(0).toVar();
+    If(pixel.lessThan(0.12),()=>grain.assign(noise2D(p.mul(kind==="metal"?70:22)).sub(0.5).mul(smoothstep(0.12,0.015,pixel))));
     if (kind === "timber")
       return sin(p.x.mul(35).add(noise2D(p.mul(vec2(0.3, 5))).mul(6)))
         .mul(0.002)
@@ -62,8 +66,8 @@ export function surface(kind, tint, metalness = 0) {
   mat.colorNode = Fn(() => {
     const p = coords(),
       pixel = length(fwidth(p));
-    const macro = noise2D(p.mul(0.7)),
-      fine = mix(float(0.5), noise2D(p.mul(32)), smoothstep(0.1, 0.018, pixel));
+    const macro = noise2D(p.mul(0.7)),fine=float(0.5).toVar();
+    If(pixel.lessThan(0.1),()=>fine.assign(mix(float(0.5),noise2D(p.mul(32)),smoothstep(0.1,0.018,pixel))));
     let tone = macro.mul(0.12).add(fine.mul(0.06)).add(0.86);
     if (kind === "copper")
       tone = mix(float(0.68), float(1.18), noise2D(p.mul(2.4)).mul(0.7).add(macro.mul(0.3)));
@@ -83,7 +87,7 @@ export function surface(kind, tint, metalness = 0) {
       .add(metalness > 0.4 ? 0.28 : kind === "roof" ? 0.65 : 0.74),
   )();
   cache.set(key, mat);
-  return mat;
+  return distantSurface(mat,tint);
 }
 
 export function createSeattleWater() {
@@ -172,11 +176,21 @@ export function createSeattleFacades() {
       metal = mat.metalnessNode ?? float(mat.metalness);
     mat.roughnessNode = abs(normalWorldGeometry.y).greaterThan(0.7).select(0.9, rough);
     mat.metalnessNode = abs(normalWorldGeometry.y).greaterThan(0.7).select(0, metal);
+    const detailedNormal=mat.normalNode;
+    mat.normalNode=Fn(()=>{
+      const result=normalViewGeometry.toVar();
+      // Existing facade bump already fades to exactly zero at 150 m; avoid evaluating it there.
+      If(length(positionWorld.sub(cameraPosition)).lessThan(150),()=>result.assign(detailedNormal));
+      return result;
+    })();
   }
   return all;
 }
 
 export function createSeattlePalette() {
+  enableSeattleInteriorLOD();
+  const flatRoof=new THREE.MeshStandardNodeMaterial({color:0x52595a,roughness:0.9});
+  flatRoof.colorNode=color(0x52595a).mul(noise2D(positionWorld.xz.mul(0.8)).mul(0.12).add(0.9));
   const grass = createParkLawnMaterial();
   grass.colorNode = Fn(() => {
     const p = positionWorld.xz,
@@ -186,9 +200,9 @@ export function createSeattlePalette() {
     return mix(color(0x31532b), color(0x55783c), macro.mul(0.65).add(fine.mul(0.18)));
   })();
   return {
-    asphalt: createRoadSurfaceMaterial(),
-    paving: createSidewalkMaterial(),
-    grass,
+    asphalt: distantSurface(createRoadSurfaceMaterial(),0x55575a),
+    paving: distantSurface(createSidewalkMaterial(),0x99938a),
+    grass:distantSurface(grass,0x456136),
     water: createSeattleWater(),
     limestone: surface("stone", 0xd9d3bf),
     white: surface("metal", 0xe2e4d9, 0.38),
@@ -200,6 +214,7 @@ export function createSeattlePalette() {
     blueRoof: surface("roof", 0x9caeba, 0.5),
     concrete: surface("stone", 0xaaa99c),
     ground: surface("paving", 0x7e827a),
+    flatRoof:distantSurface(flatRoof,0x52595a),
     leaf: surface("stone", 0x315d41),
   };
 }

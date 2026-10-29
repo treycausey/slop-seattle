@@ -11,44 +11,62 @@ import {
   TILE_SIZE,
 } from "./seattle-detail-plan.js";
 
-// Fixed pool: camera travel never grows the number of GPU buffers or scene objects.
-// Call only after the first rendered frame; base architecture remains available at all distances.
+// Nine CPU tile slots feed six packed GPU draws, instead of a draw for every tile/material pair.
+// Packing only happens on tile/data changes; camera travel never grows buffers or scene objects.
 export function createSeattleDetails(parent, palette, data) {
   const group = new THREE.Group();
   group.name = "Nearby Seattle detail";
   parent.add(group);
+  const slots = [],
+    meshes = new Map(),
+    dummy = new THREE.Object3D();
   let grid,
     geometry,
     foliage,
     disposed = false,
+    focus = null,
+    pending = [],
     builds = 0,
     lastMs = 0,
-    maxMs = 0,
-    focus = null,
-    pending = [];
-  const slots = [],
-    dummy = new THREE.Object3D();
+    maxMs = 0;
   const allocate = () => {
-    geometry ??= new THREE.BoxGeometry(1, 1, 1);
-    foliage ??= new THREE.ConeGeometry(0.5, 1, 7);
-    const meshes = Object.fromEntries(
-      DETAIL_KINDS.map((kind) => {
-        const m = new THREE.InstancedMesh(
-          kind === "leaf" ? foliage : geometry,
-          palette[kind],
-          PART_LIMIT,
-        );
-        m.count = 0;
-        m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        m.castShadow = false;
-        m.receiveShadow = true;
-        group.add(m);
-        return [kind, m];
-      }),
-    );
-    const slot = { key: null, meshes };
-    slots.push(slot);
-    return slot;
+    geometry = new THREE.BoxGeometry(1, 1, 1);
+    foliage = new THREE.ConeGeometry(0.5, 1, 7);
+    for (const kind of DETAIL_KINDS) {
+      const m = new THREE.InstancedMesh(
+        kind === "leaf" ? foliage : geometry,
+        palette[kind],
+        PART_LIMIT * TILE_LIMIT,
+      );
+      m.count = 0;
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.castShadow = false;
+      m.receiveShadow = true;
+      m.matrixAutoUpdate = false;
+      group.add(m);
+      meshes.set(kind, m);
+    }
+  };
+  const pack = () => {
+    if (!meshes.size) allocate();
+    for (const kind of DETAIL_KINDS) {
+      const m = meshes.get(kind);
+      let i = 0;
+      for (const slot of slots)
+        if (slot.key !== null)
+          for (const [x, y, z, w, h, d, yaw] of slot.parts[kind]) {
+            dummy.position.set(x, y, z);
+            dummy.scale.set(w, h, d);
+            dummy.rotation.set(0, yaw, 0);
+            dummy.updateMatrix();
+            m.setMatrixAt(i++, dummy.matrix);
+          }
+      m.count = i;
+      m.instanceMatrix.clearUpdateRanges();
+      m.instanceMatrix.addUpdateRange(0, i * 16);
+      m.instanceMatrix.needsUpdate = true;
+      m.computeBoundingSphere();
+    }
   };
   return {
     setData(next) {
@@ -57,50 +75,44 @@ export function createSeattleDetails(parent, palette, data) {
       grid?.clear();
       grid = undefined;
       focus = null;
-      for (const s of slots) {
-        s.key = null;
-        for (const m of Object.values(s.meshes)) m.count = 0;
-      }
+      slots.length = 0;
+      pending = [];
+      for (const m of meshes.values()) m.count = 0;
     },
     update(position) {
       if (disposed) return;
       group.visible = position.y - heightAt(position.x, position.z) < 450;
       if (!group.visible) return;
       const key = tileKey(Math.floor(position.x / TILE_SIZE), Math.floor(position.z / TILE_SIZE));
+      let dirty = false;
       if (focus !== key) {
         focus = key;
         const wanted = nearbyTiles(position.x, position.z),
           keys = new Set(wanted.map(([x, z]) => tileKey(x, z)));
-        // Retire old tiles immediately on teleport, before constructing the nearest new one.
         for (const s of slots)
           if (!keys.has(s.key)) {
             s.key = null;
-            for (const m of Object.values(s.meshes)) m.count = 0;
+            s.parts = null;
+            dirty = true;
           }
         pending = wanted.filter(([x, z]) => !slots.some((s) => s.key === tileKey(x, z)));
       }
       const next = pending.shift();
-      if (!next) return;
+      if (!next) {
+        if (dirty) pack();
+        return;
+      }
       const start = performance.now();
       grid ??= detailIndex(data);
-      const slot =
-        slots.find((s) => s.key === null) ?? (slots.length < TILE_LIMIT ? allocate() : null);
-      if (!slot) return;
-      const parts = planDetailTile(grid, ...next);
-      for (const kind of DETAIL_KINDS) {
-        const m = slot.meshes[kind];
-        parts[kind].forEach(([x, y, z, w, h, d, yaw], i) => {
-          dummy.position.set(x, y, z);
-          dummy.scale.set(w, h, d);
-          dummy.rotation.set(0, yaw, 0);
-          dummy.updateMatrix();
-          m.setMatrixAt(i, dummy.matrix);
-        });
-        m.count = parts[kind].length;
-        m.instanceMatrix.needsUpdate = true;
-        m.computeBoundingSphere();
+      let slot = slots.find((s) => s.key === null);
+      if (!slot && slots.length < TILE_LIMIT) {
+        slot = { key: null, parts: null };
+        slots.push(slot);
       }
+      if (!slot) return;
+      slot.parts = planDetailTile(grid, ...next);
       slot.key = tileKey(...next);
+      pack();
       builds++;
       lastMs = performance.now() - start;
       maxMs = Math.max(maxMs, lastMs);
@@ -112,11 +124,9 @@ export function createSeattleDetails(parent, palette, data) {
         builds,
         lastBuildMs: lastMs,
         maxBuildMs: maxMs,
-        instances: slots.reduce(
-          (n, s) => n + Object.values(s.meshes).reduce((v, m) => v + m.count, 0),
-          0,
-        ),
-        instanceBytes: slots.length * DETAIL_KINDS.length * PART_LIMIT * 16 * 4,
+        instances: [...meshes.values()].reduce((n, m) => n + m.count, 0),
+        instanceBytes: meshes.size * PART_LIMIT * TILE_LIMIT * 64,
+        drawBatches: meshes.size,
         indexCells: grid?.size ?? 0,
         visible: group.visible,
       };
@@ -125,9 +135,10 @@ export function createSeattleDetails(parent, palette, data) {
       if (disposed) return;
       disposed = true;
       group.removeFromParent();
-      for (const s of slots) for (const m of Object.values(s.meshes)) m.dispose();
-      group.clear();
       group.visible = false;
+      for (const m of meshes.values()) m.dispose();
+      meshes.clear();
+      group.clear();
       geometry?.dispose();
       foliage?.dispose();
       slots.length = 0;

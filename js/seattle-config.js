@@ -1,4 +1,5 @@
 import { WATERWAYS } from "./seattle-waterways.js";
+import { boundaryDistance } from "./seattle-boundary-index.js";
 export { WATERWAYS };
 // Local metric frame: Pike Place Market is the origin, east = +x, south = +z.
 export const ORIGIN = { lat: 47.6097, lon: -122.3425 };
@@ -196,25 +197,7 @@ export function terrainHeightAt(x, z) {
     )
       continue;
     if (inRing(w.rings[0], x, z)) return w.level + 0.3;
-    let distance = 160;
-    for (const ring of w.rings)
-      for (let i = 1; i < ring.length; i++) {
-        const a = ring[i - 1],
-          b = ring[i],
-          dx = b[0] - a[0],
-          dz = b[1] - a[1],
-          t = Math.max(
-            0,
-            Math.min(
-              1,
-              ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1),
-            ),
-          );
-        distance = Math.min(
-          distance,
-          Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t),
-        );
-      }
+    const distance = boundaryDistance(w,x,z);
     h = Math.min(h, w.level + 1 + distance * 0.28);
   }
   return h;

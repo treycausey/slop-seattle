@@ -2,7 +2,7 @@
 
 The north Seattle integration calls `setData(data)` whenever the four-region footprint set changes, so detail indexes release evicted records while reusing their fixed GPU pool. Region geometry also dispatches object disposal events: in the pinned Three.js WebGPU renderer, disposing geometry alone leaves render-object uniform bindings alive. The north revisit test reproduces and guards that leak. The measurements below describe the preceding downtown detail release; current expansion measurements are in `ACCEPTANCE.md`.
 
-This layer adds benches with slats and feet, planters, layered street/park trees, street lamps, cycle stands, litter bins, curbside cars, footprint-following parapets, entrance canopies, and rooftop vents/ducts/fins. Landmark additions include observation-deck railings, Market produce, pier rails, Smith Tower pilasters, and goalposts. Water has filtered moving crest flecks. Everything is code/shader geometry using existing materials; no image/model downloads or extra generated textures.
+This layer adds benches with slats and feet, planters, layered street/park trees, street lamps, cycle stands, litter bins, curbside cars, footprint-following parapets, entrance canopies, and rooftop vents/ducts/fins. The second pass adds fire escapes with landings, rails and rung ladders, planted window boxes, deeper storefront frames, tree guards, slotted curb drains, bin openings, and car lights, bumpers and mirrors. Landmark additions include observation-deck railings, Market produce, pier rails, Smith Tower pilasters, and goalposts. Water has filtered moving crest flecks. Everything is code/shader geometry using existing materials; no image/model downloads or extra generated textures.
 
 ## Integration contract
 
@@ -22,9 +22,27 @@ details.dispose();
 
 Construction/indexing waits for the first update. A 3×3 neighborhood of 160 m tiles is sorted nearest first; at most one tile is built per update. Teleport retires old counts immediately. Crossing a tile boundary recycles slots, and a stationary camera performs no planning or matrix writes. Detail is hidden above 450 m relative to terrain. Base architecture remains visible at all distances. These are decorative objects, without new movement collisions.
 
-The permanent limits are 9 slots × 6 material bins × 256 instances: **884,736 bytes of instance matrices**, plus two small shared geometries. At most 54 extra mesh objects. No shadows cast by this small detail; it receives existing lighting/shadows. The spatial index contains references to currently supplied geography only. The north loader must call `setData` on revision to retire evicted regions.
+The permanent limits are 9 slots × 6 material bins × 256 instances: **884,736 bytes of instance matrices**, plus two small shared geometries. Nine CPU slots now pack into **six mesh objects**, replacing 54 tile/material objects. Repacking and GPU writes happen only when tiles or supplied geography change. No shadows cast by this small detail; it receives existing lighting/shadows. The spatial index contains references to currently supplied geography only. The north loader must call `setData` on revision to retire evicted regions.
 
-## Local evidence — 2026-10-29
+## Second performance pass
+
+Building extrusion now emits indexed wall and roof buffers directly. Roofs use a separate material; courtyard holes and exact footprint heights remain. An exact, clamped shoreline-segment index replaces repeated complete edge scans. Region construction yields against a 4 ms budget and reveals completed geometry together. Static mesh matrices stop recomputing; explicitly animated roots retain their ordinary updates.
+
+One opaque shader chooses full nearby shading or inexpensive distant shading, with a smooth transition from 80–100 m. It retains the original material setup, lighting and scene fog nearby. Subpixel interior/grain work is skipped when it cannot resolve. Static opaque casters share position-only sun-shadow batches in 1 km cells; animated, hidden and alpha-tested objects keep their original path. The radar reuses unchanged pixels. The distant sky reuses the existing environment texture and refreshes when the lighting preset changes; background cloud billowing is no longer evaluated every frame. The canvas pixel ratio and MSAA settings are unchanged.
+
+`bun run test:rendering` compares nearby road, stone and facade pixels against their full-material reference on both backends. It also compares batched and original shadows, includes a no-shadow positive control, and rejects batching hidden or animated casters. `bun run test:north` and the detail browser harness check repeated eviction, fixed buffers, empty input and disposal. Current measurements and release status are recorded once in [ACCEPTANCE.md](ACCEPTANCE.md).
+
+The rendering benchmark runs the real update/render step in five batches of 120 frames, with a GPU queue fence after each batch. It reports the median batch cost, independently of the display's 60 Hz cap. Its submit measurement includes CPU and driver time. GPU timestamp output is diagnostic: this pinned engine returns the last query per render context, so those values are not total GPU frame durations. Reports include viewport, actual drawing dimensions, browser, hardware and a runtime-source fingerprint.
+
+```sh
+PERF_DPR=2 PERF_MOVING=1 bun run test:perf
+PERF_WIDTH=2560 PERF_HEIGHT=1440 PERF_DPR=2 PERF_MOVING=1 bun run test:perf
+E2E_BACKEND=webgl PERF_DPR=2 PERF_MOVING=1 bun run test:perf
+```
+
+`PERF_ROOT` can serve a baseline checkout through the same harness and automation dependency. `PERF_LABEL` names the reports under that checkout's ignored `tmp/`. Performance comparisons must run sequentially, with matching drawing dimensions and views. These are local Chrome measurements, not physical-phone acceptance or a promise to double displayed FPS in a scene already capped at 60 Hz.
+
+## Historical first-pass evidence — 2026-10-29
 
 `bun run test`: **212 passed**. Payload suite unchanged: **28,465 bytes gzip** for all Seattle-specific JS including production integration versus 23,086 before this pass (+5,379), below the existing 28 KiB limit. Geographic data is unchanged by this branch. This is source gzip size, not total HTTP/page weight.
 

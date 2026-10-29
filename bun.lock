@@ -5,7 +5,7 @@
     "": {
       "name": "slop-seattle",
       "devDependencies": {
-        "@treycausey/kit": "git@github.com:treycausey/kit.git#v0.10.2",
+        "@treycausey/kit": "git@github.com:treycausey/kit.git#v0.11.0",
         "htmlparser2": "^12.0.0",
         "playwright-core": "1.64.1",
       },
@@ -20,7 +20,7 @@
 
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
 
-    "@treycausey/kit": ["@treycausey/kit@git+ssh://git@github.com:treycausey/kit.git#b980bdd7343be1f179f0f97004e364a15bbe1884", { "peerDependencies": { "@anthropic-ai/sdk": ">=0.131.0 <1", "@typesafe-ai/sdk": "^0.6.0", "htmlparser2": "^12.0.0", "playwright-core": ">=1.49.0 <2", "zod": "^4.3.6" }, "optionalPeers": ["@typesafe-ai/sdk", "htmlparser2", "playwright-core"] }, "b980bdd7343be1f179f0f97004e364a15bbe1884"],
+    "@treycausey/kit": ["@treycausey/kit@git+ssh://git@github.com:treycausey/kit.git#ec4852f0d9b00ccf7d920a23e52ff18c8542ed70", { "peerDependencies": { "@anthropic-ai/sdk": ">=0.131.0 <1", "@typesafe-ai/sdk": "^0.6.0", "htmlparser2": "^12.0.0", "playwright-core": ">=1.49.0 <2", "zod": "^4.3.6" }, "optionalPeers": ["@typesafe-ai/sdk", "htmlparser2", "playwright-core"] }, "ec4852f0d9b00ccf7d920a23e52ff18c8542ed70"],
 
     "dom-serializer": ["dom-serializer@3.1.1", "", { "dependencies": { "domelementtype": "^3.0.0", "domhandler": "^6.0.0", "entities": "^8.0.0" } }, "sha512-4MEa38/QexBob6gFNwu+EGdWvhJ1OKuNwdYY3Y3NyeWDQfnGeDYQUDfIRzWu5B5gsv03so2Uxd28YC6zrsx3Lw=="],
 

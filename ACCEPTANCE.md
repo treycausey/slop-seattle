@@ -17,7 +17,7 @@ Single acceptance record for the Seattle fork. The source snapshot contains 4,49
 | Reload | Seattle mode and position restored | Invalid / unavailable local storage ignored | Browser pagehide/reload assertion | Passed |
 | Use phone-sized viewport and joystick | Controls fit; touch drag moves active player | Touch end clears only touch input | Touch-emulated browser flow and 390×844 capture on both backends | Passed |
 | Request WebGL fallback | Same flows render without GPU validation errors | WebGPU remains default | `E2E_BACKEND=webgl bun run test:e2e`: PASS, no GPU errors | Passed |
-| Run permanent suite | Upstream contracts and Seattle data checks pass | Failures block publication | `bun run test`: 205 passed, 0 failed | Passed |
+| Run permanent suite | Upstream contracts, Seattle data, payload and camera regression checks pass | Failures block publication | `bun run test`: 209 passed, 0 failed | Passed |
 | Publish main and load Pages | Fork main matches remote; public app and data load | Verify deployment status and public rendered page | [Successful Pages deployment](https://github.com/treycausey/slop-seattle/actions/runs/40789582031); public browser capture reports ready, 4,465 generic buildings and 2,317 roads; served `seattle.js` SHA-256 matches local | Passed |
 
 ## Rendering diagnosis
@@ -32,3 +32,21 @@ WebGL also interpreted the characters' 496-byte storage pose buffer as a per-ver
 - The original Manhattan traffic, crowds, and transit are retained in source but are not instantiated in the Seattle scene. Follow-up: [Seattle routing integration](https://github.com/treycausey/slop-seattle/issues/1).
 - Automated mobile evidence uses touch emulation; a physical iPhone/Safari run has not been observed.
 - Screenshots and test logs are generated under ignored `tmp/`. Public deployment evidence is distinct from local test evidence.
+
+## Procedural visual pass — 2026-10-28
+
+| Action | Expected result | Failure / recovery | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Inspect streets, roofs and waterfront | Weathering, joints, glazing, copper, wood and water detail come from shaders and generated geometry | High-frequency detail fades with pixel footprint | Batched landmark, skyline and mobile captures | Passed |
+| Select seven architectural destinations | Distinctive structural signatures and composed views | Neighboring buildings rejected as camera blockers; movement returns to follow | Browser Places clicks, arrival bounds and `placeView.clear` on both backends | Passed |
+| Inspect the Spheres | Glass domes, framework and planting visible through a clear view | Exact footprint visibility preserves concave courtyards and selects a clear azimuth/elevation | Blocked-preset and L-shaped courtyard regressions; native and WebGL captures | Passed |
+| Watch Great Wheel | 42 enclosed cabins remain upright while the rim rotates | Separate instanced translation from rim rotation | Browser cabin-count and rotation assertions | Passed |
+| Inspect Lumen Field | Arched trusses, seating, field markings; no trees inside the stadium | Landmark footprint excludes tree placement | Daytime stadium capture | Passed |
+| Select Night at the Market | Generated neon and analog clock remain legible | Time preset can return to daylight | Night capture | Passed |
+| Check asset budget | No downloaded texture/model files; Seattle JS below 28 KiB gzip | Byte budget and browser request assertions block shipment | 23,086 gzip bytes Seattle JS vs 12,400 baseline: +10,686 bytes; unchanged geographic snapshot; no media requests | Passed |
+| Exercise WebGPU and WebGL | Controls, scene and touch flow work without GPU errors | Inherited WebGL pose compatibility remains active | Both complete browser runs PASS; 365 scene meshes, 380,610 triangles, 45 materials, 12 generated textures | Passed |
+| Publish visual pass | Public site serves tested material/landmark modules | Compare served hashes and open the public page | GitHub Pages target verification | Pending publication |
+
+The first full native run timed out waiting for startup; subsequent native and WebGL runs completed without shader errors. A later run encountered resource connection resets before application initialization; its request origin was not recorded. URL logging was added, and fresh complete runs passed. Module-load failure reporting is tracked separately in [issue 2](https://github.com/treycausey/slop-seattle/issues/2). No cold-start timing claim is made.
+
+Visual review found an obstructed Spheres preset; fixed coordinates were replaced by deterministic camera selection. A concave-footprint regression reproduced bounding boxes incorrectly filling an open courtyard, then passed after polygon-aware clipping. Foundations now extend down to the lowest sampled footprint elevation while preserving roof height, avoiding gaps beneath generic buildings on slopes.

@@ -12,9 +12,12 @@ const COAST = [
   [47.589, -122.3508],
   [47.594, -122.3455],
   [47.6, -122.3394],
-  [47.603, -122.3407],
-  [47.609, -122.3454],
-  [47.615, -122.3539],
+  // Downtown bulkhead follows the Alaskan Way snapshot, offset 30 m toward the bay.
+  [47.603, -122.33771],
+  [47.606, -122.34047],
+  [47.609, -122.345],
+  [47.612, -122.35002],
+  [47.615, -122.35527],
   [47.621, -122.365],
   [47.627, -122.375],
   [47.634, -122.38],
@@ -85,3 +88,15 @@ export const DESTINATIONS = [
 ];
 export const WORLD = { bounds: BOUNDS, shoreAt, heightAt };
 export const coast = COAST;
+
+// Hand-composed architectural views, in metres relative to each landmark.
+export const LANDMARK_VIEWS = {
+  needle: { eye: [-120, 108, 210], target: [0, 103, 0] },
+  market: { eye: [88, 35, 105], target: [6, 14, 0] },
+  wheel: { eye: [-95, 42, 110], target: [0, 28, 0] },
+  columbia: { eye: [-230, 185, 300], target: [0, 145, 0] },
+  smith: { eye: [-90, 78, 135], target: [0, 76, 0] },
+  spheres: { eye: [65, 85, 125], target: [0, 15, 0] },
+  stadium: { eye: [175, 155, 210], target: [0, 32, 0] },
+  lake: { eye: [-150, 60, 100], target: [100, -40, -220] },
+};

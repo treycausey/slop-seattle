@@ -213,10 +213,27 @@ const rows = [
     "Hat 'n' Boots holiday",
     "Georgetown's giants sent their smaller cousins north.",
   ],
+  [
+    "eruption",
+    "rainier",
+    "The mountain is rumbling…",
+    "Rainier wakes up",
+    "Seattle's most dramatic snow globe.",
+  ],
 ];
 export const SECRETS = rows.map(([id, place, clue, title, message]) => {
   const d = DESTINATIONS.find((d) => d.id === place);
-  return { id, place, clue, title, message, x: d.x, z: d.z };
+  return {
+    id,
+    place,
+    clue,
+    title,
+    message,
+    x: d.x,
+    z: d.z,
+    duration: id === "eruption" ? 14 : SECRET_DURATION,
+    cooldown: id === "eruption" ? 24 : SECRET_COOLDOWN,
+  };
 });
 export function restoreDiscoveries(raw) {
   try {
@@ -263,7 +280,9 @@ export function createSecretState(raw) {
       return this.nearby(p)[0] ?? null;
     },
     remaining(id, t) {
-      return Math.max(0, SECRET_COOLDOWN - (t - (last.get(id) ?? -Infinity)));
+      const cooldown =
+        SECRETS.find((s) => s.id === id)?.cooldown ?? SECRET_COOLDOWN;
+      return Math.max(0, cooldown - (t - (last.get(id) ?? -Infinity)));
     },
     trigger(s, t) {
       if (!s || this.remaining(s.id, t) > 0) return false;

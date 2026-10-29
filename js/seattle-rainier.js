@@ -54,6 +54,10 @@ export function createRainier(parent) {
   }
   let scale = 1;
   return {
+    poseEffect(effect) {
+      effect.position.copy(group.position);
+      effect.scale.copy(group.scale);
+    },
     react(progress) {
       cloud.visible = progress > 0 && progress < 1;
       cloud.rotation.y = progress * 0.7;

@@ -1,4 +1,4 @@
-import { heightAt, DESTINATIONS } from "./seattle-config.js";
+import { heightAt, DESTINATIONS,landmarkClearance } from "./seattle-config.js";
 
 export const TILE_SIZE = 160,
   TILE_LIMIT = 9,
@@ -38,7 +38,7 @@ export function detailIndex(data) {
         (d) =>
           d.id !== "lake" &&
           Math.hypot(d.x - b.x, d.z - b.z) <
-            (d.id === "stadium" ? 160 : d.id === "needle" ? 48 : d.id === "market" ? 65 : 35),
+            landmarkClearance(d.id),
       )
     )
       continue;

@@ -407,6 +407,7 @@ class ThirdPersonControllerManager {
         if (west > east) return null;
         px = Math.max(west, Math.min(east, px));
       }
+      if(!heli && this.world?.isWalkable && !this.world.isWalkable(px,pz))return null;
       return { x: px, z: pz };
     };
     const clear = (p) => {
@@ -925,6 +926,7 @@ class ThirdPersonControllerManager {
       }
     }
 
+    if(!heli && this.world?.constrain){const p=this.world.constrain(pos.x,pos.z);pos.x=p.x;pos.z=p.z;}
     const body = collisionBody(this.activeMode, radius, carEntity ? carEntity.heading : 0);
     const { sin: sinH, cos: cosH, extX, extZ } = body;
     const contact = this._buildingContact ??= { nx: 0, nz: 0, depth: 0 };

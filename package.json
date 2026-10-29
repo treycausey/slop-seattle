@@ -19,7 +19,7 @@
     "dev": "uv run python -m http.server 4178 --bind 127.0.0.1"
   },
   "devDependencies": {
-    "@treycausey/kit": "git@github.com:treycausey/kit.git#v0.11.0",
+    "@treycausey/kit": "git@github.com:treycausey/kit.git#v0.11.1",
     "htmlparser2": "^12.0.0",
     "playwright-core": "1.64.1"
   }

@@ -27,6 +27,7 @@ A Seattle remix of [mrdoob’s Slop New York](https://github.com/mrdoob/slop-new
 - Searchable street atlas, click-to-travel map, 95 searchable destination shortcuts, radar, four time presets, mouse orbit, touch controls, gamepad input, and saved player position. Travel waits for destination geometry and colliders; a failed neighborhood load preserves the current position and offers a retry by selecting the place again.
 - Photo mode (`P` or Photo) hides the interface, pauses travel, and lets you orbit or pinch around the current composition. Change light cycles the four presets; Back or Escape restores the controls and focus. Its roughly 1 KiB gzip module loads only when requested after the first interactive frame. Repeated visits reuse the same viewer and add no GPU resources.
 - The night sky adds deterministic, filtered stars and a subtly cratered moon inside the existing sky draw. Daytime skips the night calculations. No new texture, model, render target or draw call is required.
+- Park lawns follow their surveyed outlines and holes, with shared vertices and smooth normals. They intersect the same terrain triangles as the ground, preventing gray wedges through hillsides. Across the downtown snapshot and all 87 north regions, lawn geometry uses 39% fewer buffer bytes; the largest regional lawn buffer drops from 159 KB to 25 KB. Water and evergreen instances retain their existing procedural materials and bounded batches.
 - Stylized elevations and shoreline. This is a playful city interpretation, not a survey or navigation tool. Ambient road traffic, pedestrians, and transit from the Manhattan scene are not instantiated in Seattle.
 - WebGPU rendering with WebGL 2 fallback (or append `?webgl` to request it explicitly), sky and environment lighting, and WebGPU cascaded sun shadows. Seattle uses a single color pass; inherited vehicle decal overrides for the original reflection pipeline are removed before compilation. WebGL player characters use uniform pose buffers with the original geometry and animation.
 
@@ -48,6 +49,7 @@ bun run test
 bun run test:e2e
 bun run test:boot
 bun run test:photo
+bun run test:parks
 bun run test:north
 bun run test:secrets
 bun run test:eruption

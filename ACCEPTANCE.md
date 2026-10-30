@@ -2,6 +2,23 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Overnight demo, continuous park terrain — 2026-10-29
+
+Baseline: `c6720ba`. The old park renderer accepted whole 24m squares based on their centers, expanding lawns outside surveyed outlines and filling portions of holes. It now triangulates the real outline/holes, clips to the resident region and the existing terrain grid, shares vertices, and interpolates the exact same ground planes with the existing 0.55m lawn offset. Smooth normals remove unnecessary facet seams. Water and instanced evergreen art were retained after the bounded landscape review; extra effects did not justify their cost.
+
+| Action | Result and recovery | Evidence | Status |
+| --- | --- | --- | --- |
+| Build a triangular surveyed park | Zero outside vertices; exact 4608 m² projected area; indexed geometry and upward normals | Real Three.js city-builder regression failed before with 30 outside vertices and passes on WebGPU/WebGL after | Passed locally |
+| Drape curved hills and cross region seams | No ground protrusion at vertices, edge midpoints or triangle centers; shared-grid seam heights match across regions | Curved-hill regression failed for the first prototype, then passed after using common terrain triangles; hole/concavity/crop/translated-grid fixtures | Passed |
+| Inspect parks on desktop/phone | Surveyed edges and continuous lawns replace square cutouts; original architectural signatures remain | Two bounded landscape review rounds; final Gas Works/Locks and phone captures; viewport captures wait for actual resized frames | Passed |
+| Profile every park dataset | 88 datasets, 472 stored park parts including tile repetitions: geometry 1,145,808 → 700,920 bytes (-38.8%); maximum north-region lawn buffer 158,832 → 25,488 bytes (-84.0%); terrain evaluations 47,742 → 5,640 | Actual before/after production park-generator fragments, three alternating component scans | Passed |
+| Keep construction responsive | Median aggregate park-only construction 33.7 → 48.9ms over all 88 datasets; new maximum individual north-region park build ≤2.3ms in these scans | More exact clipping costs some CPU; this is not a whole-region construction-time or startup speedup claim | Passed |
+| Match startup, memory and rendering | Cold medians 1165 → 1175ms; initial tracked GPU bytes 99,940,030 → 99,894,304; JS heap essentially unchanged at 72.4 MB. Six-view native 0.9686 → 0.9682 ms/frame, WebGL 0.4315 → 0.4240 | Three alternating cold contexts and matched 1440×1000 six-view tours; no frame-rate improvement claimed | Passed |
+| Preserve full game and caps | 243 permanent tests, full 95-Place app tours, 16 streamed visits with eviction/retry, all 31 discoveries/62 visits and Photo repeat tests on both backends | Final integration logs; four regions/eight sites/nine detail tiles/three active effects remain bounded; source 94,590 gzip bytes under 94 KiB; no downloaded media | Passed |
+| Publish | Exact served park sources, ordinary public travel/Photo/touch and both backends | Pending | Pending |
+
+The first independent grass tessellation exposed gray ground wedges on hills. The discriminating curved-hill fixture confirmed mismatched interpolation; sharing the terrain grid fixed the mechanism without adding layers or raising lawns. Terrain, footprint heights and coastlines remain stylized; no physical phone measurement is claimed.
+
 ## Overnight demo, Photo and night sky — 2026-10-29
 
 Baseline: `00bde98`. Photo mode loads only on request after the first interactive frame. It reuses the existing pointer orbit/pinch state and one small DOM viewer; it pauses travel, preserves the rendered camera ray, and restores orbit state/focus on exit. The procedural night sky adds filtered stars and a cratered moon inside the existing sky draw, with a uniform branch skipping night calculations by day.

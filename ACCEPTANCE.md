@@ -9,12 +9,12 @@ Baseline: `b6fa4f7`. Controllers and cameras needed only live Bryant Park lawn b
 | Action | Result and recovery | Evidence | Status |
 | --- | --- | --- | --- |
 | Cold Seattle boot | 63 → 62 requests; 221,056 fewer decoded resource bytes before the recovery guard | Baseline and lean cold CDP reports; assertion failed before extraction and passes after | Passed locally |
-| Inspect actual hosted encoding | Old city-grid + landmarks bodies total 66,469 gzip bytes; measure the replacement after publication | Public response headers; local server transfer totals are not hosted gzip totals | Publication pending |
+| Inspect actual hosted encoding | Old city-grid + landmarks bodies total 66,469 gzip bytes; replacement state is 195 uncompressed bytes: 66,274 fewer response-body bytes | Public response headers; local server transfer totals are not hosted gzip totals | Passed |
 | Build original New York landmarks | Live namespace binding matches extracted state; controller lawn height equals actual generated top, 1.3192283746402036; 11 colliders | Real browser dynamic imports/build, both backends | Passed |
 | Fail engine module download, then retry | Readable error, focused 44px-minimum retry button; keyboard Enter reloads successfully after recovery; phone layout has no overflow | Local engine 503 regression timed out before fix, passes after; desktop/390×844 screenshots | Passed on WebGPU and WebGL |
 | Preserve exploration | 95 destinations, four travel modes, movement, camera/map/help/saved state and touch joystick remain usable | Complete local browser suite, both backends; 237 permanent tests, zero failures | Passed |
 | Preserve source budget | 90 KiB gzip Seattle module ceiling now includes the inline error guard; no downloaded artwork | Permanent payload test | Passed |
-| Publish checkpoint | Exact served files and public normal controls checked after deployment | Release evidence to follow | Pending |
+| Publish checkpoint | Seven served HTML/CSS/JS files match local byte-for-byte; normal public boot omits Manhattan generators; 95 Places, Market search/travel, touch menu and mobile overflow pass on both backends, with no errors | Main `2097f4e`; [successful Pages run](https://github.com/treycausey/slop-seattle/actions/runs/41003183550); public desktop capture; [issue 2 closed](https://github.com/treycausey/slop-seattle/issues/2) | Passed |
 
 Single cold startup samples were 1252ms before, 1228ms after extraction, and about 1205ms native / 1045ms WebGL with recovery handling. These are noisy observations, not a claimed startup percentage improvement. This checkpoint changes loading and recovery; visual improvements, data compaction and a showcase experience remain tracked in [DEMO_PASS.md](DEMO_PASS.md). Touch evidence uses emulation, not a physical phone.
 

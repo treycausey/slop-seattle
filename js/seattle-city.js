@@ -36,9 +36,9 @@ function extrude(ring, height, base = 0, holes = [],wallInfo) {
   const parts=buildingBuffers(ring,holes,height,base,(outer,inner)=>THREE.ShapeUtils.triangulateShape(outer.map(([x,z])=>new THREE.Vector2(x,z)),inner.map(r=>r.map(([x,z])=>new THREE.Vector2(x,z)))),wallInfo);
   return Object.fromEntries(Object.entries(parts).map(([key,p])=>{
     const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(p.positions,3));g.setAttribute("normal",new THREE.Float32BufferAttribute(p.normals,3));g.setIndex(p.indices);
-    // Wall dimensions/palette phase are rendering metadata; half floats halve this attribute's CPU storage.
-    // Surveyed positions and the original decoded data remain full precision.
-    if(p.box){g.setAttribute('box',new THREE.Float16BufferAttribute(p.box.map(n=>THREE.DataUtils.toHalfFloat(n)),4));g.setAttribute('facadeWall',new THREE.Float32BufferAttribute(p.facadeWall,3));}return [key,g];
+    // Geometry batching in this pin loses the Float16 attribute class but preserves its Uint16 bits.
+    // Use Float32 so integer upload cannot turn those bits into incorrect facade dimensions.
+    if(p.box){g.setAttribute('box',new THREE.Float32BufferAttribute(p.box,4));g.setAttribute('facadeWall',new THREE.Float32BufferAttribute(p.facadeWall,3));}return [key,g];
   }));
 }
 function ribbon(points, width, offset = 0.1) {
@@ -291,7 +291,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
     if (landmarkReplacesFootprint(b)) continue;
     const y = heightAt(b.x, b.z),
       footingY = Math.min(y, ...b.ring.map(([x, z]) => heightAt(x, z))),
-      surfaces = extrude(b.ring, b.height + y - footingY, footingY, b.holes,(a,c,side,hole)=>({kind:facadeTreatment(sitesIndex,b,a,c,side,hole),seed:(b.id%127)+0.1875+(b.id%7)*0.09375})),
+      surfaces = extrude(b.ring, b.height + y - footingY, footingY, b.holes,(a,c,side,hole)=>({kind:facadeTreatment(sitesIndex,b,a,c,side,hole),seed:(b.id%65521)+0.15+(b.id%7)*0.1})),
       style = b.height > 65 ? b.id % 3 : b.height<10&&Math.max(...b.ring.map(p=>p[0]))-Math.min(...b.ring.map(p=>p[0]))<23&&Math.max(...b.ring.map(p=>p[1]))-Math.min(...b.ring.map(p=>p[1]))<25 ? 8+(b.id%3) : 3 + (b.id % 5);
     const cell = `${Math.floor(b.x / 2400)}:${Math.floor(b.z / 2400)}`,
       key = `${cell}:${style}`;

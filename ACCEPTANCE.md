@@ -2,6 +2,23 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Overnight demo, geography dependency cut — 2026-10-29
+
+Baseline: `21b4e3b`. Shared controllers, materials and gamepad field handling still imported `city-config.js`, which eagerly decoded the entire Manhattan geographic database. Both entry points now explicitly configure shared runtime geography before constructing players/materials. New York supplies its unchanged real geography; Seattle supplies its existing world and no Central Park exception. Generic field handling is independent of geography.
+
+| Action | Result and recovery | Evidence | Status |
+| --- | --- | --- | --- |
+| Cold boot, three alternating fresh browser contexts | Local decoded resources fall from 3,562,668 to 2,391,373 bytes, a 1,171,295-byte / 32.9% reduction; neither NYC config nor geography is requested | Cold CDP/resource reports; cache disabled; 1440×1000 Chrome, native backend | Passed |
+| Settle initial scene, collect garbage, inspect retained JS heap | Median used heap 82,886,732 → 72,398,316 bytes: 10,488,416 bytes / 12.7% less; same nine detail tiles, 884,736 instance bytes and 99.94 MB tracked GPU allocation | Three alternating baseline/current samples; JS heap is a browser metric, not process RSS or device memory | Passed |
+| Check actual hosted unused files | Removed NYC geography/config bodies are 398,739 + 13,503 gzip bytes; replacement runtime/input modules total less than 1 KB uncompressed | Public baseline response headers; publication headers to follow | Local cut verified |
+| Exercise original New York | Real original entry reaches rendered scene without errors; isolated document checks real lawn height, live binding, 11 colliders, original person spawn z=410.6, park identity and water material | Native original-app screenshot and isolated contract checks on both backend runs | Passed |
+| Repeat Seattle controls and failed-download recovery | 95 Places, four modes, map, camera, saves, touch and focused retry all remain usable; no console/page/GPU errors | Both full application and boot suites; 237 permanent tests, zero failures; 91,293-byte Seattle source gzip including guard | Passed |
+| Preserve discoveries and player features | 31 discoveries, 62 visits, active cap, Troll/Rainier response, both avatars, Blue Angels flight/smoke, eruption cooldown/disposal and reduced motion remain usable | All discovery, avatar, Blue Angels and eruption browser suites pass on WebGPU and WebGL; repeat GPU allocations remain bounded | Passed |
+| Match six-view rendering | Native mean 0.9714 → 0.9675 ms/frame; WebGL 0.4190 → 0.4254 ms/frame at 1440×1000, same antialiasing and near/shadow detail: effectively unchanged | Six matched camera views per backend, five batches of 120 real steps each; observed differences below 2%, no claimed rendering gain | Passed |
+| Publish and verify | Exact served runtime and normal public controls, with no NYC downloads | Pending | Pending |
+
+Cold startup medians were 1160ms before and 1176ms after. This cut reduces download, parsing and retained heap; it does not establish a startup-time or frame-rate improvement. Raw compressed data formats were left intact because Pages already compresses the main JSON snapshot. No physical phone claim is made.
+
 ## Overnight demo, startup checkpoint — 2026-10-29
 
 Baseline: `b6fa4f7`. Controllers and cameras needed only live Bryant Park lawn bounds, but imported the entire Manhattan landmark generator. A small shared state module preserves that live binding and removes `landmarks.js` and `city-grid.js` from Seattle's cold request graph. New York still constructs its real landmarks and re-exports the same state.

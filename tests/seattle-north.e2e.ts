@@ -52,7 +52,7 @@ try {
   const boot = await state();
   assert.equal(boot.streaming.resident, 0);
   assert.ok(
-    !requests.some((u) => /\/-?\d+_-?\d+\.json.gz/.test(u)),
+    !requests.some((u) => /\/-?\d+_-?\d+\.bin.gz/.test(u)),
     "no full north tiles downloaded at boot",
   );
   await page.evaluate(() => {
@@ -61,11 +61,11 @@ try {
       window.northLongTasks.push(...list.getEntries().map((e) => e.duration)),
     ).observe({ type: "longtask" });
   });
-  let injected = false;
-  await page.route("**/seattle-north/*.json.gz", async (route) => {
-    if (!injected && /\/-?\d+_-?\d+\.json.gz$/.test(route.request().url())) {
+  let injected = false,corrupt=false;
+  await page.route("**/seattle-north/*.bin.gz", async (route) => {
+    if (!injected && /\/-?\d+_-?\d+\.bin.gz$/.test(route.request().url())) {
       injected = true;
-      await route.fulfill({ status: 503, body: "test: neighborhood offline" });
+      await route.fulfill(corrupt?{status:200,contentType:'application/octet-stream',body:Buffer.from([0x53,0x53,0x50,0x31])}:{ status: 503, body: "test: neighborhood offline" });
     } else await route.continue();
   });
   await page.locator("#places-button").click();
@@ -78,6 +78,10 @@ try {
     Math.hypot(failed.x - boot.x, failed.z - boot.z) < 1,
     "failed travel preserves position",
   );
+  corrupt=true;injected=false;
+  await page.locator('[data-destination="troll"]').click();
+  await page.waitForFunction(()=>document.getElementById('travel-status').textContent.includes('invalid'));
+  const malformed=await state();assert.ok(Math.hypot(malformed.x-boot.x,malformed.z-boot.z)<1,'corrupt data also preserves the current position');
   await page.locator('[data-destination="troll"]').click();
   await page.waitForFunction(
     () =>
@@ -91,7 +95,7 @@ try {
     false,
     "successful retry clears failure state",
   );
-  await page.unroute("**/seattle-north/*.json.gz");
+  await page.unroute("**/seattle-north/*.bin.gz");
   const cdp = await chrome.context.newCDPSession(page),
     rounds = [],
     buildTimes = [];

@@ -27,11 +27,18 @@ import { createRainier } from "./seattle-rainier.js";
 import { buildingBuffers } from "./seattle-building-buffers.js";
 import { createDistantFacades, applyFacadeLOD } from "./seattle-facade-lod.js";
 import { createDistrictLandmarks } from "./seattle-landmark-stream.js";
+import { siteIndex, facadeTreatment } from './seattle-site-index.js';
+import { groveSites } from './seattle-grove-plan.js';
+import { createGroves } from './seattle-groves.js';
+import {disposeStreetSigns} from './seattle-shopfronts.js';
 
-function extrude(ring, height, base = 0, holes = []) {
-  const parts=buildingBuffers(ring,holes,height,base,(outer,inner)=>THREE.ShapeUtils.triangulateShape(outer.map(([x,z])=>new THREE.Vector2(x,z)),inner.map(r=>r.map(([x,z])=>new THREE.Vector2(x,z)))));
+function extrude(ring, height, base = 0, holes = [],wallInfo) {
+  const parts=buildingBuffers(ring,holes,height,base,(outer,inner)=>THREE.ShapeUtils.triangulateShape(outer.map(([x,z])=>new THREE.Vector2(x,z)),inner.map(r=>r.map(([x,z])=>new THREE.Vector2(x,z)))),wallInfo);
   return Object.fromEntries(Object.entries(parts).map(([key,p])=>{
-    const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(p.positions,3));g.setAttribute("normal",new THREE.Float32BufferAttribute(p.normals,3));g.setIndex(p.indices);return [key,g];
+    const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(p.positions,3));g.setAttribute("normal",new THREE.Float32BufferAttribute(p.normals,3));g.setIndex(p.indices);
+    // Wall dimensions/palette phase are rendering metadata; half floats halve this attribute's CPU storage.
+    // Surveyed positions and the original decoded data remain full precision.
+    if(p.box){g.setAttribute('box',new THREE.Float16BufferAttribute(p.box.map(n=>THREE.DataUtils.toHalfFloat(n)),4));g.setAttribute('facadeWall',new THREE.Float32BufferAttribute(p.facadeWall,3));}return [key,g];
   }));
 }
 function ribbon(points, width, offset = 0.1) {
@@ -173,6 +180,9 @@ function* buildSeattleSteps(scene, data, options = {}) {
     colliders = [],
     ferries = [];
   const distantStyles=options.distantStyles??createDistantFacades(styles.map(m=>m.userData.facadeStyle));
+  const footprintStyles=options.footprintStyles??createSeattleFacades(true);
+  const footprintDistant=options.footprintDistant??createDistantFacades(footprintStyles.map(m=>m.userData.facadeStyle),true);
+  const sitesIndex=siteIndex(data);
   const details = chunk ? null : createSeattleDetails(group, p, data);
   const rainier = chunk ? null : createRainier(group);
   if (!chunk) {
@@ -281,8 +291,8 @@ function* buildSeattleSteps(scene, data, options = {}) {
     if (landmarkReplacesFootprint(b)) continue;
     const y = heightAt(b.x, b.z),
       footingY = Math.min(y, ...b.ring.map(([x, z]) => heightAt(x, z))),
-      surfaces = extrude(b.ring, b.height + y - footingY, footingY, b.holes),
-      style = b.height > 65 ? b.id % 3 : 3 + (b.id % 5);
+      surfaces = extrude(b.ring, b.height + y - footingY, footingY, b.holes,(a,c,side,hole)=>({kind:facadeTreatment(sitesIndex,b,a,c,side,hole),seed:(b.id%127)+0.1875+(b.id%7)*0.09375})),
+      style = b.height > 65 ? b.id % 3 : b.height<10&&Math.max(...b.ring.map(p=>p[0]))-Math.min(...b.ring.map(p=>p[0]))<23&&Math.max(...b.ring.map(p=>p[1]))-Math.min(...b.ring.map(p=>p[1]))<25 ? 8+(b.id%3) : 3 + (b.id % 5);
     const cell = `${Math.floor(b.x / 2400)}:${Math.floor(b.z / 2400)}`,
       key = `${cell}:${style}`;
     if (!batches.has(key)) batches.set(key, { style, geos: [] });
@@ -360,8 +370,8 @@ function* buildSeattleSteps(scene, data, options = {}) {
     }
   }
   for (const { style, geos } of batches.values()) {
-    const walls=mesh(group, mergeGeometries(geos), styles[style]);walls.userData.shadowBatch=true;
-    applyFacadeLOD(walls, distantStyles[style]);
+    const walls=mesh(group, mergeGeometries(geos), footprintStyles[style]);walls.userData.shadowBatch=true;
+    applyFacadeLOD(walls, footprintDistant[style]);
     geos.forEach((g) => g.dispose());
   }
   if (roofParts.length) {
@@ -396,68 +406,9 @@ function* buildSeattleSteps(scene, data, options = {}) {
     batchStatic(architecture);
     architecture.traverse(o=>{if(o.isMesh&&!o.userData.dynamic)o.userData.shadowBatch=true;});
   }
-  // Four tapered branch tiers per tree, with one foliage and one trunk draw for the entire city.
-  const sites = [];
   const bounds = chunk ? data.bounds : CORE_BOUNDS;
-  for (let i = 0; i < (chunk ? 180 : 850); i++) {
-    const x = bounds.minX + ((i * 1543.17) % (bounds.maxX - bounds.minX)),
-      z = bounds.minZ + ((i * 733.51) % (bounds.maxZ - bounds.minZ));
-    if (!isLand(x, z)) continue;
-    if (
-      DESTINATIONS.some((d) =>
-        d.id === "stadium"
-          ? Math.abs(d.x - x) < 100 && Math.abs(d.z - z) < 135
-          : d.id !== "needle" &&
-            d.id !== "lake" &&
-            Math.hypot(d.x - x, d.z - z) < 55,
-      )
-    )
-      continue;
-    if (
-      data.buildings.some(
-        (b) => Math.abs(b.x - x) < 30 && Math.abs(b.z - z) < 30,
-      )
-    )
-      continue;
-    if (
-      data.roads.some((r) =>
-        r.points.some((q) => Math.hypot(q[0] - x, q[1] - z) < 22),
-      )
-    )
-      continue;
-    sites.push([x, heightAt(x, z), z]);
-  }
-  const tiers = [];
-  for (let j = 0; j < 4; j++) {
-    const geo = new THREE.ConeGeometry(4.2 - j * 0.8, 6.5 - j * 0.5, 9);
-    geo.translate(0, 5 + j * 2.7, 0);
-    tiers.push(geo);
-  }
-  const tree = new THREE.InstancedMesh(
-      mergeGeometries(tiers),
-      p.leaf,
-      sites.length,
-    ),
-    trunks = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.45, 0.7, 7, 6),
-      p.timber,
-      sites.length,
-    ),
-    dummy = new THREE.Object3D();
-  tiers.forEach((g) => g.dispose());
-  sites.forEach(([x, y, z], i) => {
-    const s = 0.75 + (i % 7) * 0.07;
-    dummy.position.set(x, y, z);
-    dummy.scale.set(s, s * (0.9 + (i % 4) * 0.08), s);
-    dummy.rotation.y = i * 2.4;
-    dummy.updateMatrix();
-    tree.setMatrixAt(i, dummy.matrix);
-    dummy.position.y = y + 3;
-    dummy.updateMatrix();
-    trunks.setMatrixAt(i, dummy.matrix);
-  });
-  group.add(tree, trunks);
-  tree.castShadow = true;
+  const grove=createGroves(group,p,groveSites(data,bounds,sitesIndex,isLand,DESTINATIONS,chunk?240:700,chunk?CORE_BOUNDS:null),bounds);
+  sitesIndex.dispose();
   if (!chunk) {
     for (let i = 0; i < 2; i++) {
       const f = new THREE.Group();
@@ -510,12 +461,16 @@ function* buildSeattleSteps(scene, data, options = {}) {
     landmarks: landmarks?.landmarks ?? [],
     styles,
     distantStyles,
+    footprintStyles,
+    footprintDistant,
     shadowBatch:options.shadowBatch,
     details,
     districts,
     colliders,
     buildingCount,
     dispose() {
+      grove.dispose();
+      if(!chunk){details?.dispose();rainier?.dispose();p.water.userData.dispose?.();disposeStreetSigns();}
       districts?.dispose();
       group.removeFromParent();
       const geometries = new Set();
@@ -558,6 +513,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
       matrix.decompose(v, q, s);
       return {
         rainier: rainier?.stats(),
+        groves:grove.stats(),
         trollEyeScale:
           landmarks?.landmarks.find((g) => g.userData.trollEye)?.userData
             .trollEye.scale.y ?? 1,
@@ -583,6 +539,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
       };
     },
     update(t, position) {
+      if(position)grove.update(position);
       if (position) rainier?.update(position);
       if (position) details?.update(position);
       if (position) districts?.update(position);

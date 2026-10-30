@@ -6,6 +6,7 @@ import {
   REGION_LIMIT,
 } from "./seattle-stream-plan.js";
 import { heightAt } from "./seattle-config.js";
+import { readSeattleResponse } from './seattle-codec.js';
 
 export async function compressedJSON(file, signal) {
   const response = await fetch(
@@ -16,9 +17,7 @@ export async function compressedJSON(file, signal) {
     throw new Error(
       `Neighborhood data could not load (${response.status}). Choose the place again to retry.`,
     );
-  return new Response(
-    response.body.pipeThrough(new DecompressionStream("gzip")),
-  ).json();
+  return readSeattleResponse(response);
 }
 // One decoded/building job in flight, four resident regions, no unbounded data or GPU cache.
 export function createSeattleStream(city, data, onChange, onStatus, prepare=async()=>{}) {
@@ -101,7 +100,7 @@ export function createSeattleStream(city, data, onChange, onStatus, prepare=asyn
           regions.delete(id);
         }
         const version = generation,
-          chunk = await compressedJSON(`${tile.id}.json.gz`);
+          chunk = await compressedJSON(`${tile.id}.bin.gz`);
         totalFetched += tile.bytes;
         if (version !== generation && !desired.some((t) => t.id === tile.id))
           continue;
@@ -120,6 +119,8 @@ export function createSeattleStream(city, data, onChange, onStatus, prepare=asyn
             palette: city.palette,
             styles: city.styles,
             distantStyles: city.distantStyles,
+            footprintStyles:city.footprintStyles,
+            footprintDistant:city.footprintDistant,
             shadowBatch:city.shadowBatch,
           });
         lastBuildMs = Math.round(performance.now() - started);
@@ -168,6 +169,7 @@ export function createSeattleStream(city, data, onChange, onStatus, prepare=asyn
   return {
     ensure,
     update(position) {
+      for(const r of regions.values())r.city.update(0,position);
       if (!manifest) {
         if (position.z < -1900 || position.x < -2000)
           getManifest().catch((e) => onStatus(e.message));
@@ -189,7 +191,7 @@ export function createSeattleStream(city, data, onChange, onStatus, prepare=asyn
     },
     async loadOverview() {
       await getManifest();
-      overviewRows = await compressedJSON("overview.json.gz");
+      overviewRows = await compressedJSON("overview.bin.gz");
       overview = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 1, 1),
         city.distantStyles[3],
@@ -201,7 +203,7 @@ export function createSeattleStream(city, data, onChange, onStatus, prepare=asyn
       publish();
     },
     async atlas() {
-      return (atlas ??= compressedJSON("atlas.json.gz").catch((e) => {
+      return (atlas ??= compressedJSON("atlas.bin.gz").catch((e) => {
         atlas = null;
         throw e;
       }));

@@ -1,0 +1,11 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {gzipSync} from 'node:zlib';
+import {encodeSeattle} from './seattle-encode.mjs';
+import {decodeSeattle} from '../js/seattle-codec.js';
+import assert from 'node:assert/strict';
+const source = JSON.parse(readFileSync(new URL('./data/seattle-core.json', import.meta.url)));
+const bytes = encodeSeattle(source);
+assert.deepEqual(decodeSeattle(bytes), source);
+const compressed = gzipSync(bytes, {level:9});
+writeFileSync(new URL('../js/seattle-data.bin.gz', import.meta.url), compressed);
+console.log(JSON.stringify({buildings:source.buildings.length,bytes:compressed.length}));

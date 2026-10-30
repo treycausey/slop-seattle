@@ -34,7 +34,9 @@ try{
   await nyc.close();
   assert.equal(compatibility.same,true);assert.equal(compatibility.height,compatibility.top);assert.equal(compatibility.finite,true);assert.ok(compatibility.colliders>0);
   assert.equal(compatibility.spawn,compatibility.expectedSpawn);assert.equal(compatibility.park,true);assert.equal(compatibility.water,true);
-  let offline=true;await page.route('**/build/three.webgpu.js',async route=>offline?route.fulfill({status:503,body:'test: engine unavailable'}):route.continue());
+  for(const name of ['core','tsl','webgpu'])assert.equal(timing.filter(r=>r.name.includes(`/build/three.${name}.`)).length,1,'one engine runtime per module');
+  assert.ok(timing.filter(r=>r.name.includes('/build/')).every(r=>r.name.endsWith('.min.js')));
+  let offline=true;await page.route('**/build/three.webgpu.min.js',async route=>offline?route.fulfill({status:503,body:'test: engine unavailable'}):route.continue());
   await page.reload({waitUntil:'networkidle'});
   await page.waitForSelector('#boot-retry',{timeout:10000});
   assert.match(await page.locator('#loading-status').innerText(),/could not load/i);

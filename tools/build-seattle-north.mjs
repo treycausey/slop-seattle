@@ -8,13 +8,14 @@ import {
   unlinkSync,
 } from "node:fs";
 import { gzipSync } from "node:zlib";
+import {encodeSeattle} from './seattle-encode.mjs';
 import { project, BOUNDS, inRing } from "../js/seattle-config.js";
 const input = new URL("../tmp/codex-north-source/", import.meta.url);
 const output = new URL("../js/seattle-north/", import.meta.url);
 mkdirSync(output, { recursive: true });
 const read = (k) =>
   JSON.parse(readFileSync(new URL(`${k}.json`, input), "utf8")).features;
-const round = (n) => Math.round(n * 10) / 10;
+const round = (n) => Math.round(n * 10) / 10 || 0;
 const point = (p) => {
   const v = project(p[1], p[0]);
   return [round(v.x), round(v.z)];
@@ -241,7 +242,8 @@ writeFileSync(
   `// City of Seattle Shoreline and Waterlines/Channels, simplified to 4–5 m.\nexport const WATERWAYS = ${JSON.stringify(waterways)};\n`,
 );
 const manifest = {
-  version: 1,
+  version: 2,
+  format: 'SSP1',
   tileSize: size,
   source:
     "City of Seattle GIS: Building Outlines 2023, Seattle Streets, Parks boundaries; heights estimated",
@@ -252,8 +254,8 @@ const manifest = {
 };
 for (const [id, data] of [...tiles].sort(([a], [b]) => a.localeCompare(b))) {
   const [tx, tz] = id.split("_").map(Number),
-    bytes = gzipSync(JSON.stringify(data), { level: 9 });
-  writeFileSync(new URL(`${id}.json.gz`, output), bytes);
+    bytes = gzipSync(encodeSeattle(data), { level: 9 });
+  writeFileSync(new URL(`${id}.bin.gz`, output), bytes);
   manifest.tiles.push({
     id,
     x: tx * size,
@@ -263,10 +265,10 @@ for (const [id, data] of [...tiles].sort(([a], [b]) => a.localeCompare(b))) {
   });
 }
 const atlas = gzipSync(
-  JSON.stringify({ roads: atlasRoads, parks: atlasParks }),
+  encodeSeattle({ roads: atlasRoads, parks: atlasParks }),
   { level: 9 },
 );
-writeFileSync(new URL("atlas.json.gz", output), atlas);
+writeFileSync(new URL("atlas.bin.gz", output), atlas);
 manifest.atlasBytes = atlas.length;
 const distant = [...overview.values()].map((b) => [
   round(b.x / b.n),
@@ -274,13 +276,13 @@ const distant = [...overview.values()].map((b) => [
   round(b.height),
   round(Math.min(65, 16 + Math.sqrt(b.n) * 9)),
 ]);
-const coarse = gzipSync(JSON.stringify(distant), { level: 9 });
-writeFileSync(new URL("overview.json.gz", output), coarse);
+const coarse = gzipSync(encodeSeattle(distant), { level: 9 });
+writeFileSync(new URL("overview.bin.gz", output), coarse);
 manifest.overviewBytes = coarse.length;
 manifest.overviewBlocks = distant.length;
-const valid = new Set(manifest.tiles.map((t) => `${t.id}.json.gz`));
+const valid = new Set(manifest.tiles.map((t) => `${t.id}.bin.gz`));
 for (const name of readdirSync(output))
-  if (/^-?\d+_-?\d+\.json.gz$/.test(name) && !valid.has(name))
+  if (/^-?\d+_-?\d+\.(?:bin|json)\.gz$/.test(name) && !valid.has(name))
     unlinkSync(new URL(name, output));
 writeFileSync(new URL("manifest.json", output), JSON.stringify(manifest));
 console.log(

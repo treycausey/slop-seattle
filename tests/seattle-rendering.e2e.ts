@@ -37,6 +37,10 @@ try {
       if(node.value?.copy)node.value.copy(shared.cityUniforms[key].value);else node.value=shared.cityUniforms[key].value;
     }
     const references={asphalt:reference.createRoadSurfaceMaterial(),paving:reference.createSidewalkMaterial()};
+    // Compare LOD against the full version of Seattle's deliberately shallower, drier road treatment.
+    const {normalize,normalViewGeometry}=await import('three/tsl');
+    references.asphalt.normalNode=normalize(normalViewGeometry.mul(.82).add(references.asphalt.normalNode.mul(.18)));
+    references.asphalt.roughnessNode=references.asphalt.roughnessNode.mul(.25).add(.6);
     const casterRoot=new THREE.Group(),box=new THREE.BoxGeometry(),base=new THREE.MeshBasicNodeMaterial();
     const caster=()=>{const m=new THREE.Mesh(box,base);m.castShadow=true;return m;};
     const visible=caster(),hidden=caster(),hiddenParent=new THREE.Group(),hiddenChild=caster(),movingParent=new THREE.Group(),moving=caster();

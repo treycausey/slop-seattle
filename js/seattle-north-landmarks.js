@@ -101,7 +101,7 @@ function gasworks(g, p) {
     [1, -8, 10, 29],
     [20, 7, 7, 22],
   ]) {
-    cylinder(g, p.copper, x, 0, z, r, r, h, 24);
+    cylinder(g, p.rust, x, 0, z, r, r, h, 24);
     cylinder(g, p.roof, x, h, z, r * 0.86, r, 2, 24);
     for (const y of [6, 13, 20]) {
       const ring = mesh(
@@ -113,6 +113,8 @@ function gasworks(g, p) {
         z,
       );
       ring.rotation.x = Math.PI / 2;
+      const rail=mesh(g,new THREE.TorusGeometry(r+.8,.09,4,24),p.rust,x,y+1.1,z);rail.rotation.x=Math.PI/2;
+      for(let k=0;k<8;k++){const a=k*Math.PI/4;beam(g,p.rust,[x+Math.cos(a)*(r+.8),y,z+Math.sin(a)*(r+.8)],[x+Math.cos(a)*(r+.8),y+1.15,z+Math.sin(a)*(r+.8)],.07);}
     }
     for (let j = 0; j < 6; j++) {
       const a = (j * Math.PI) / 3;
@@ -124,7 +126,16 @@ function gasworks(g, p) {
         0.22,
       );
     }
-    cylinder(g, p.roof, x + 3, h, z, 0.8, 0.8, 10, 12);
+    cylinder(g, p.rust, x + 3, h, z, 0.8, 0.8, 10, 12);
+    // Riveted seams, a caged ladder and offset pipes make the old machinery readable nearby.
+    for(const side of [-1,1])beam(g,p.dark,[x+side*.45,1,z+r+1],[x+side*.45,h,z+r+1],.07);
+    for(let y=1;y<h;y+=.7)beam(g,p.rust,[x-.45,y,z+r+1],[x+.45,y,z+r+1],.05);
+    for(const side of [-1,1]){
+      const px=x+side*(r+1.8);beam(g,p.rust,[px,1,z-2],[px,h*.6,z-2],.65);
+      beam(g,p.rust,[px,h*.6,z-2],[x,h*.6,z-2],.65);
+      cylinder(g,p.dark,px,2,z-2,1,1,.25,12);
+      for(let y=3;y<h*.6;y+=4)cylinder(g,p.dark,px,y,z-2,.85,.85,.16,12);
+    }
   }
   for (const z of [-26, 27]) {
     box(g, p.dark, 0, 7, z, 65, 1, 4);

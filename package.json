@@ -16,7 +16,10 @@
     "test:boot": "bun run tests/seattle-boot.e2e.ts",
     "test:photo": "bun run tests/seattle-photo.e2e.ts",
     "test:parks": "bun run tests/seattle-parks.e2e.ts",
+    "test:quality": "bun run tests/seattle-quality.e2e.ts",
+    "test:data": "bun run tests/seattle-data.e2e.ts",
     "data:seattle": "bun run tools/build-seattle.mjs",
+    "data:pack": "bun run tools/pack-seattle.mjs",
     "data:north:fetch": "bun run tools/fetch-seattle-north.mjs",
     "data:north": "bun run tools/build-seattle-north.mjs",
     "dev": "uv run python -m http.server 4178 --bind 127.0.0.1"

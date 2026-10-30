@@ -19,6 +19,7 @@ import { SeattleMap, nearestRoad } from "./seattle-map.js";
 import { preparePlayerMaterials } from "./seattle-player-materials.js";
 import { resolveLandmarkView } from "./seattle-viewpoints.js";
 import { createSeattleStream } from "./seattle-stream.js";
+import { readSeattleResponse } from './seattle-codec.js';
 
 const $ = (id) => document.getElementById(id);
 const modes = ["person", "car", "cyclist", "helicopter", "blueangels"];
@@ -45,12 +46,12 @@ async function init() {
   const currentMode = () =>
     flight ? "blueangels" : controllerManager.activeMode;
   const status = $("loading-status");
-  const response = await fetch(new URL("./seattle-data.json", import.meta.url));
+  const response = await fetch(new URL("./seattle-data.bin.gz", import.meta.url), {signal:AbortSignal.timeout(15000)});
   if (!response.ok)
     throw new Error(
       `Seattle map data could not load (${response.status}). Reload to try again.`,
     );
-  const data = await response.json();
+  const data = await readSeattleResponse(response);
   status.textContent = "Preparing the waterfront and skyline…";
   const renderer = new THREE.WebGPURenderer({
     antialias: true,

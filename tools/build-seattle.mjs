@@ -1,6 +1,8 @@
 // Transform a saved Overpass `out geom` response into the offline city snapshot.
 // Usage: bun run tools/build-seattle.mjs tmp/seattle-osm.json
 import { readFileSync, writeFileSync } from "node:fs";
+import {gzipSync} from 'node:zlib';
+import {encodeSeattle} from './seattle-encode.mjs';
 import { project, CORE_BOUNDS as BOUNDS, shoreAt } from "../js/seattle-config.js";
 const input = process.argv[2];
 if (!input) throw new Error("Supply a saved Overpass JSON response");
@@ -15,7 +17,7 @@ const data = {
   roads: [],
   parks: [],
 };
-const round = (n) => Math.round(n * 10) / 10;
+const round = (n) => Math.round(n * 10) / 10 || 0;
 for (const e of source.elements) {
   if (!e.geometry?.length) continue;
   const points = e.geometry
@@ -63,7 +65,8 @@ for (const e of source.elements) {
 }
 if (data.buildings.length < 500 || data.roads.length < 100)
   throw new Error("Seattle snapshot is unexpectedly sparse");
-writeFileSync(new URL("../js/seattle-data.json", import.meta.url), JSON.stringify(data));
+writeFileSync(new URL("./data/seattle-core.json", import.meta.url), JSON.stringify(data));
+writeFileSync(new URL("../js/seattle-data.bin.gz", import.meta.url), gzipSync(encodeSeattle(data),{level:9}));
 console.log(
   JSON.stringify({
     buildings: data.buildings.length,

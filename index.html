@@ -10,16 +10,20 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <script type="importmap">
     {"imports":{
-      "three":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.webgpu.js",
-      "three/webgpu":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.webgpu.js",
-      "three/tsl":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.tsl.js",
-      "three/addons/":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/examples/jsm/"
+      "three":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.webgpu.min.js",
+      "three/webgpu":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.webgpu.min.js",
+      "three/tsl":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.tsl.min.js",
+      "three/addons/":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/examples/jsm/",
+      "https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.webgpu.js":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.webgpu.min.js",
+      "https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.tsl.js":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.tsl.min.js",
+      "https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.core.js":"https://cdn.jsdelivr.net/gh/mrdoob/three.js@b3396270682287470d161658ac01084d25e8dba6/build/three.core.min.js"
     }}
   </script>
   <link rel="modulepreload" href="./js/seattle.js" />
   <link rel="modulepreload" href="./js/seattle-config.js" />
   <link rel="modulepreload" href="./js/seattle-city.js" />
   <link rel="modulepreload" href="./js/seattle-park-buffers.js" />
+  <link rel="modulepreload" href="./js/seattle-codec.js" />
   <link rel="modulepreload" href="./js/seattle-map.js" />
   <script id="seattle-boot-guard">
     window.addEventListener('error',event=>{

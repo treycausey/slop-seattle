@@ -1,6 +1,6 @@
 // Indexed footprint extrusion, with separate roof/wall attributes. UVs are unnecessary:
 // Seattle facades use stable world coordinates, and roofs use world-space surface detail.
-export function buildingBuffers(ring, holes, height, base, triangulate) {
+export function buildingBuffers(ring, holes, height, base, triangulate, wallInfo) {
   const clean = (r) =>
     r.length > 1 && r[0][0] === r.at(-1)[0] && r[0][1] === r.at(-1)[1] ? r.slice(0, -1) : r;
   const rings = [ring, ...holes].map(clean),
@@ -8,6 +8,7 @@ export function buildingBuffers(ring, holes, height, base, triangulate) {
     n = points.length;
   const roof = { positions: [], normals: [], indices: [] },
     walls = { positions: [], normals: [], indices: [] };
+  if(wallInfo){walls.box=[];walls.facadeWall=[];}
   for (const y of [base + height, base])
     for (const [x, z] of points) {
       roof.positions.push(x, y, z);
@@ -53,6 +54,14 @@ export function buildingBuffers(ring, holes, height, base, triangulate) {
         a[1],
       );
       for (let j = 0; j < 4; j++) walls.normals.push((side * dz) / len, 0, (-side * dx) / len);
+      if(wallInfo){
+        const {kind,seed}=wallInfo(a,b,side,index>0);
+        for(let j=0;j<4;j++){
+          walls.box.push(len,height,height,seed);
+          const along=j===1||j===2?1:0;
+          walls.facadeWall.push(side>0?1-along:along,j<2?height:0,kind);
+        }
+      }
       if (side > 0) walls.indices.push(v, v + 2, v + 1, v, v + 3, v + 2);
       else walls.indices.push(v, v + 1, v + 2, v, v + 2, v + 3);
     }

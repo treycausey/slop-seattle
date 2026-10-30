@@ -43,6 +43,7 @@
   <header class="seattle-header">
     <div class="identity"><div class="eyebrow">The Emerald City</div><h1>Slop Seattle</h1><p>Elliott Bay to Green Lake.</p></div>
     <nav class="top-tools" aria-label="Explore Seattle">
+      <button type="button" id="photo-button" aria-pressed="false" title="Photo mode (P)">Photo</button>
       <button id="places-button" type="button" popovertarget="destinations">Places ↗</button>
       <button id="map-button" type="button">Map <span aria-hidden="true">M</span></button>
       <select id="time-select" aria-label="Time of day"><option value="golden">Golden hour</option><option value="midday">Midday</option><option value="twilight">Blue hour</option><option value="midnight">Night</option></select>
@@ -68,6 +69,7 @@
     <div class="dialog-head"><h2 id="help-title">Around Seattle</h2><button type="button" data-close="help" aria-label="Close help">✕</button></div>
     <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or arrow keys to move. <kbd>E</kbd> to climb or jump; <kbd>Q</kbd> to descend when flying.</p>
     <p><kbd>1–5</kbd> change travel mode. <kbd>V</kbd> changes camera. Drag the view to orbit; scroll to zoom. <kbd>M</kbd> opens the map. Choose a destination in Places or click the map to travel.</p>
+    <p><kbd>P</kbd> opens Photo mode. Drag or pinch to frame the view, change the light, then press <kbd>Esc</kbd> or Back to return.</p>
     <p><kbd>5</kbd> joins a Blue Angels diamond. The jets fly forward automatically: W/S adjusts speed, A/D banks and turns, E/Q climbs and descends. <kbd>B</kbd> or Smoke toggles the trails. Touch uses the stick and altitude arrows; gamepads use the existing flight controls. Places views and dialogs pause formation travel.</p>
     <p>Press <kbd>F</kbd> or tap a nearby discovery prompt to investigate. Another clue cycles nearby secrets. Look frames the surprise; moving or changing camera returns to travel.</p>
     <p>Real street and building footprints, with stylized terrain and landmark models. A modern browser with WebGPU or WebGL 2 is required.</p>

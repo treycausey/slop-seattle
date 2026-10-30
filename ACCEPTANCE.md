@@ -2,6 +2,23 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Overnight demo, Photo and night sky — 2026-10-29
+
+Baseline: `00bde98`. Photo mode loads only on request after the first interactive frame. It reuses the existing pointer orbit/pinch state and one small DOM viewer; it pauses travel, preserves the rendered camera ray, and restores orbit state/focus on exit. The procedural night sky adds filtered stars and a cratered moon inside the existing sky draw, with a uniform branch skipping night calculations by day.
+
+| Action | Visible result and recovery | Evidence | Status |
+| --- | --- | --- | --- |
+| Open Photo or press P | HUD recedes; composed landmark view is preserved; drag/pinch/scroll frames the shot | Real entry, orbit, zoom and desktop/phone captures; module absent from boot request graph | Passed locally |
+| Use keyboard/touch, then exit | Movement and game shortcuts pause; Change light cycles presets; Back/Escape restores controls and focus; skyline ray and Blue Angels pause remain correct | Native/WebGL Photo suites, including narrow 320px layout, touch pinch, reduced motion and reload without a persisted Photo mode | Passed |
+| Reopen 30 times | One viewer, unchanged warm GPU allocations; retained heap stays bounded | Native 113,134,380 tracked GPU bytes in all three rounds; WebGL 65,603,059 in all three; GC heap roughly 84.0/26.3 MB | Passed |
+| Fail optional module | One explicit cache-busted retry; after two failed imports the user sees Reload to retry; no retry loop or lost normal controls | Both browser suites exercise failure, recovery and capped requests | Passed |
+| Inspect night sky | Static stars and moon render without downloaded media; all 24 matched view/backend/time samples retain identical mesh, triangle and generated-texture counts | Diagnostic moon/stars captures plus normal Market night view; two batched visual rounds completed | Passed |
+| Match rendering, 1440×1000 | Day native 0.9613 → 0.9640 ms/frame; night 1.0083 → 1.0189. WebGL day 0.4394 → 0.4478; night 0.4772 → 0.4563. Aggregate differences range from -4.4% to +1.9% | Six views, five batches ×120 real steps, each backend/time; no rendering improvement claimed | Passed |
+| Preserve app and budget | Full 95-Place/movement/map/save/touch suites and boot recovery pass on both backends; 237 permanent tests pass; total Seattle modules roughly 93.4 KB gzip | Source ceiling explicitly increases from 90 to 94 KiB for about 2.1 KB of Photo/night code, versus roughly 478 KB of removed dependency download | Passed |
+| Publish | Exact served source, normal public Photo/light/exit/touch and no NYC imports | Pending | Pending |
+
+Mobile evidence uses Chrome touch emulation. The viewer adds no textures, geometry, render targets or render loop; the sky reuses its existing material/geometry. The first visual batch inspected desktop/phone/sky; the final batch confirmed controls and composition. The narrow header now wraps rather than overflowing. No further polish round is planned for this surface.
+
 ## Overnight demo, geography dependency cut — 2026-10-29
 
 Baseline: `21b4e3b`. Shared controllers, materials and gamepad field handling still imported `city-config.js`, which eagerly decoded the entire Manhattan geographic database. Both entry points now explicitly configure shared runtime geography before constructing players/materials. New York supplies its unchanged real geography; Seattle supplies its existing world and no Central Park exception. Generic field handling is independent of geography.

@@ -59,6 +59,7 @@ try {
   });
   await page.waitForSelector('body[data-ready="true"]', { timeout: 120000 });
   await page.waitForFunction(()=>window.slopSeattle.getState().secrets.ready);
+  if(process.env.PERF_TIME)await page.locator('#time-select').selectOption(process.env.PERF_TIME);
   const cdp = await chrome.context.newCDPSession(page);
   if (process.env.PERF_PROFILE === "1") {
     await cdp.send("Profiler.enable");
@@ -215,7 +216,7 @@ try {
     timestamp: new Date().toISOString(),
     browser: await page.evaluate(()=>navigator.userAgent),
     hardware: {cpu:cpus()[0]?.model,memoryBytes:totalmem()},
-    method: {viewport,dpr:Number(process.env.PERF_DPR??1),stepsPerBatch:Number(process.env.PERF_COUNT??120),batches:5,movingCamera:process.env.PERF_MOVING==="1",mode:process.env.PERF_MODE??"helicopter"},
+    method: {viewport,dpr:Number(process.env.PERF_DPR??1),stepsPerBatch:Number(process.env.PERF_COUNT??120),batches:5,movingCamera:process.env.PERF_MOVING==="1",mode:process.env.PERF_MODE??"helicopter",time:process.env.PERF_TIME??"golden"},
     sourceSHA256:createHash("sha256").update(readdirSync(`${root}/js`).filter(n=>n.endsWith(".js")).sort().map(n=>n+"\n"+readFileSync(`${root}/js/${n}`,"utf8")).join("\n")).digest("hex"),
     results,
   };

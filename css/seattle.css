@@ -231,6 +231,10 @@ h1 {
 #place-search { width: 100%; box-sizing: border-box; margin: 0 0 6px; padding: 10px; border: 1px solid #adc2bb55; border-radius: 8px; background: #14292f; color: inherit; font: inherit; }
 #place-count { margin: 4px 8px 8px; font-size: 12px; color: #adc2bb; }
 #boot-retry { margin-top: 16px; min-height: 44px; }
+#photo-tools { position: fixed; z-index: 30; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+#photo-tools[hidden] { display: none; }
+#photo-tools button { min-height: 44px; white-space: nowrap; background: #13262df2; }
+.photo-mode :is(.seattle-header,.status-card,.controls,.atlas-card,.touch-controls,.secret-controls,#secret-toast,#travel-status) { display: none !important; }
 #destinations small {
   display: block;
   font-size: 11px;
@@ -396,6 +400,9 @@ kbd {
     margin-top: 10px;
     width: fit-content;
     gap: 3px;
+    flex-wrap: wrap;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .top-tools button,
   .top-tools select {

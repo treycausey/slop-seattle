@@ -127,6 +127,23 @@ async function init() {
       place.id === "wheel" ? 4 : terrainHeightAt(place.x, place.z),
     );
   let selectedView = viewFor(selectedPlace);
+  let photo=null,photoLoading=false,photoAttempts=0;
+  const togglePhoto=async()=>{
+    if(document.body.dataset.ready!=='true'||photoLoading||traveling||map.dialog.open||$("help").open||secrets?.isOpen())return;
+    if(photoAttempts===2){showTravelStatus('Photo mode could not load. Reload to retry.');return;}
+    photoLoading=true;$("photo-button").disabled=true;
+    try{
+      if(!photo){const {createPhotoMode}=await import('./seattle-photo.js'+(photoAttempts?'?retry=1':''));
+        photo=createPhotoMode(camera,$("photo-button"),()=>cameras[cameraIndex]==='landmark'?new THREE.Vector3(...selectedView.target):camera.currentLookAt,
+          ()=>{controllerManager.resetInput();touch.reset();gamepad.reset();},()=>{
+            const select=$("time-select");select.selectedIndex=(select.selectedIndex+1)%select.options.length;applyTime();
+          },heightAt);}
+      if(map.dialog.open||$("help").open||secrets?.isOpen())return;
+      $("destinations").hidePopover();showTravelStatus('');photo.toggle();
+    }catch{photoAttempts++;showTravelStatus(photoAttempts<2?'Photo mode could not load. Try Photo again.':'Photo mode could not load. Reload to retry.');}
+    finally{photoLoading=false;$("photo-button").disabled=false;}
+  };
+  $("photo-button").onclick=togglePhoto;
   const cycleCamera = () => {
     document.body.classList.remove("secret-focus");
     cameraIndex = (cameraIndex + 1) % cameras.length;
@@ -413,6 +430,7 @@ async function init() {
       return;
     }
     if (map.dialog.open || $("help").open || secrets?.isOpen()) return;
+    if (e.key.toLowerCase() === "p") {e.preventDefault();togglePhoto();return;}
     if (/^[1-5]$/.test(e.key)) selectMode(modes[Number(e.key) - 1]);
     if (e.key.toLowerCase() === "b") toggleSmoke();
     if (e.key.toLowerCase() === "v") cycleCamera();
@@ -433,6 +451,7 @@ async function init() {
       return {
         ready: document.body.dataset.ready === "true",
         mode: currentMode(),
+        photo: photo?.active??false,
         blueAngels: flight?.stats() ?? { active: false },
         avatar: updatePlayerMaterials.avatarStats(camera.camera),
         x: e.position.x,
@@ -470,7 +489,7 @@ async function init() {
       dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     elapsed += dt;
-    const modal = map.dialog.open || $("help").open || secrets?.isOpen();
+    const modal = photo?.active || map.dialog.open || $("help").open || secrets?.isOpen();
     gamepad.setEnabled(!modal);
     touch.setEnabled(!modal);
     gamepad.update(dt);
@@ -489,6 +508,8 @@ async function init() {
       document.body.classList.remove("secret-focus");
       $("camera-button").textContent = "Camera · V";
     }
+    if(photo?.active)photo.update();
+    else {
     camera.update(dt, elapsed);
     flight?.camera(camera, cameras[cameraIndex], dt);
     if (cameras[cameraIndex] === "landmark") {
@@ -507,6 +528,7 @@ async function init() {
         heightAt(camera.camera.position.x, camera.camera.position.z) + 1,
       );
       updatePlayerMaterials.frameAvatar(camera);
+    }
     }
     lighting.update(camera.currentPos);
     if (!traveling) stream.update(controllerManager.getActiveEntity().position);

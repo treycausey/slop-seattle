@@ -4,6 +4,8 @@ A Seattle remix of [mrdoob’s Slop New York](https://github.com/mrdoob/slop-new
 
 [Play Slop Seattle](https://treycausey.github.io/slop-seattle/)
 
+[Upstream and fork review](UPSTREAM_REVIEW.md): measured smaller-download prototypes and a prioritized plan for richer procedural facades, water and vegetation. These experiments are separate from the shipped game.
+
 ## Seattle
 
 - A bundled OpenStreetMap snapshot: 4,490 building footprints, 2,317 road segments, and 51 parks. Tagged heights are used when available; missing heights receive deterministic estimates.

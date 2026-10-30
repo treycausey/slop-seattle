@@ -90,10 +90,23 @@ try {
       near.push({name,...difference(optimized,capture(fixture,view))});
       mesh.material=optimizedMaterial;mesh.material.fragmentNode=original;mesh.material.needsUpdate=true;mesh.removeFromParent();geometry.dispose();mesh.dispatchEvent({type:"dispose"});
     }
-    return {shadow,near,casterFilters};
+    // Numeric GPU regression: uploaded wall dimensions must retain real window columns, not filtered stripes.
+    const {buildSeattle}=await import('./js/seattle-city.js');
+    const data={bounds:{minX:1500,maxX:1600,minZ:800,maxZ:900},parks:[],roads:[],buildings:[{id:17,x:1550,z:850,height:20,ring:[[1540,840],[1560,840],[1560,860],[1540,860],[1540,840]]}]};
+    const host=new THREE.Scene(),part=buildSeattle(host,data,{chunk:true,palette:city.palette,styles:city.styles,footprintStyles:city.footprintStyles,footprintDistant:city.footprintDistant});
+    const wall=part.group.children.find(o=>o.geometry?.attributes.facadeWall),bounds=new THREE.Box3().setFromBufferAttribute(wall.geometry.attributes.position),center=bounds.getCenter(new THREE.Vector3());
+    const columnsScene=new THREE.Scene(),columnsMesh=new THREE.Mesh(wall.geometry,city.footprintDistant[3+17%5]);columnsScene.background=new THREE.Color(0);columnsScene.add(columnsMesh);
+    const columnsCamera=new THREE.OrthographicCamera(-11,11,11,-11,1,200);columnsCamera.position.set(center.x,center.y,center.z+90);columnsCamera.lookAt(center);
+    r.setSize(256,256);await r.compileAsync(columnsScene,columnsCamera);r.render(columnsScene,columnsCamera);if(r.backend.device)await r.backend.device.queue.onSubmittedWorkDone();else r.backend.gl.finish();
+    const pixels=document.createElement('canvas');pixels.width=pixels.height=256;const columnsContext=pixels.getContext('2d');columnsContext.drawImage(r.domElement,0,0);const rgba=columnsContext.getImageData(0,0,256,256).data;
+    let maxColumnStd=0;
+    for(let y=40;y<216;y+=3){let sum=0,sq=0,n=0;for(let x=40;x<216;x++){const i=(y*256+x)*4,l=.2126*rgba[i]+.7152*rgba[i+1]+.0722*rgba[i+2];sum+=l;sq+=l*l;n++;}maxColumnStd=Math.max(maxColumnStd,Math.sqrt(Math.max(0,sq/n-(sum/n)**2)));}
+    columnsMesh.removeFromParent();columnsMesh.dispatchEvent({type:'dispose'});part.dispose();
+    return {shadow,near,casterFilters,maxColumnStd};
   });
   console.log(JSON.stringify({backend:process.env.E2E_BACKEND??"webgpu",...results}));
   assert.deepEqual(results.casterFilters,{visible:false,hidden:true,hiddenParent:true,moving:true,proxyVertices:36});
+  assert.ok(results.maxColumnStd>5,'rendered footprint walls retain distinct vertical window columns: '+results.maxColumnStd);
   for(const result of results.near){assert.ok(result.mean>1,`nonempty ${result.name}`);assert.ok(result.rms<1&&result.changedFraction<0.005,JSON.stringify(result));}
   if(results.shadow){assert.ok(results.shadow.mean>1);assert.ok(results.shadow.changedFraction<0.01,JSON.stringify(results.shadow));assert.ok(results.shadow.withoutShadows.changedFraction>0.001,"positive control: visible shadows");}
   assert.deepEqual(errors,[]);assert.deepEqual(chrome.blocked,[]);

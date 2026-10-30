@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { configureCityRuntime } from './city-runtime.js';
 import { createSeattleDistantSky } from "./seattle-distant-sky.js";
 import { ThirdPersonControllerManager } from "./controllers.js";
 import { CameraSystem } from "./cameras.js";
@@ -29,6 +30,10 @@ const modeNames = {
   blueangels: "Blue Angels",
 };
 const cameras = ["chase", "action", "pov", "skyline", "landmark"];
+
+configureCityRuntime({ISLAND_BOUNDS:BOUNDS,CENTRAL_PARK_BOUNDS:null,
+  getIslandBoundsAtZ:WORLD.shoreAt,streetZ:()=>0,blockAt:()=>null,
+  NJ_SHORELINE_POLYGON:[],LONG_ISLAND_POLYGONS:[]});
 
 async function init() {
   const startedAt = performance.now();

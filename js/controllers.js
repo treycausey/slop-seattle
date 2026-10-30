@@ -3,10 +3,10 @@ import {
   ISLAND_BOUNDS,
   CENTRAL_PARK_BOUNDS,
   getIslandBoundsAtZ,
-  isTypingInField,
   blockAt,
   streetZ
-} from './city-config.js';
+} from './city-runtime.js';
+import { isTypingInField } from './input-utils.js';
 import { cityUniforms, createCarPaintMaterial, createContactShadowMaterial } from './tsl-materials.js';
 import {
   BODY_SPECS,
@@ -30,9 +30,9 @@ import { polygonContact } from './building-collision.js';
 // Player models, animation and movement for walking, driving, cycling and flying.
 
 // Spawn on 5th Ave at 37th St, facing south down the avenue toward the Empire State Building (34th St)
-const SPAWN_Z = streetZ(37);
-const DEFAULT_WORLD_BOUNDS = ISLAND_BOUNDS;
-const defaultShoreAt = getIslandBoundsAtZ;
+const spawnZ = () => streetZ(37);
+const defaultBounds = () => ISLAND_BOUNDS;
+const defaultShoreAt = (z) => getIslandBoundsAtZ(z);
 const groundCollider = { type: 'ground' };
 
 const CAR_DRIVE = {
@@ -380,7 +380,7 @@ class ThirdPersonControllerManager {
   // Find a fully clear arrival before moving the player. Sequential collision pushes can leave a player trapped
   // between overlapping buildings, so test whole candidate footprints instead; retain the old position if none fits.
   findTeleportPosition(x, z, heading, altitude) {
-    const ISLAND_BOUNDS = this.world?.bounds ?? DEFAULT_WORLD_BOUNDS;
+    const ISLAND_BOUNDS = this.world?.bounds ?? defaultBounds();
     const getIslandBoundsAtZ = this.world?.shoreAt ?? defaultShoreAt;
     if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
     const heli = this.activeMode === 'helicopter';
@@ -470,7 +470,7 @@ class ThirdPersonControllerManager {
       mesh: root,
       crowd,
       rig,
-      position: new THREE.Vector3(-11.6, ISLAND_BOUNDS.sidewalkHeight, SPAWN_Z + 12),
+      position: new THREE.Vector3(-11.6, ISLAND_BOUNDS.sidewalkHeight, spawnZ() + 12),
       heading: 0,
       speed: 0,
       verticalVel: 0,
@@ -578,9 +578,9 @@ class ThirdPersonControllerManager {
       carState,
       headLights,
       wheels,
-      position: new THREE.Vector3(3.6, 0.0, SPAWN_Z + 12),
+      position: new THREE.Vector3(3.6, 0.0, spawnZ() + 12),
       prevX: 3.6,
-      prevZ: SPAWN_Z + 12,
+      prevZ: spawnZ() + 12,
       heading: 0,
       speed: 0,
       vx: 0,
@@ -747,7 +747,7 @@ class ThirdPersonControllerManager {
       riderRig,
       helmet,
       headLight,
-      position: new THREE.Vector3(5.2, 0.0, SPAWN_Z - 8),
+      position: new THREE.Vector3(5.2, 0.0, spawnZ() - 8),
       heading: 0,
       speed: 0,
       leanAngle: 0,
@@ -831,7 +831,7 @@ class ThirdPersonControllerManager {
       tiltPivot,
       mainRotorPivot,
       tailRotorPivot,
-      position: new THREE.Vector3(-110, 96, SPAWN_Z - 60),
+      position: new THREE.Vector3(-110, 96, spawnZ() - 60),
       heading: 0.62,
       speed: 0,
       verticalSpeed: 0,
@@ -853,7 +853,7 @@ class ThirdPersonControllerManager {
     if (this.world) return this.world.heightAt(x, z, mode);
     // Inside Central Park (5th Ave to Central Park West, 59th St to 110th St)
     const cp = CENTRAL_PARK_BOUNDS;
-    if (x > cp.minX && x < cp.maxX && z > cp.minZ && z < cp.maxZ) {
+    if (cp && x > cp.minX && x < cp.maxX && z > cp.minZ && z < cp.maxZ) {
       return 1.24;
     }
     // Inside Bryant Park's Great Lawn (west of the New York Public Library, 40th-42nd St)
@@ -906,7 +906,7 @@ class ThirdPersonControllerManager {
   }
 
   resolveHorizontalCollision(pos, radius, carEntity = null, entity = carEntity) {
-    const ISLAND_BOUNDS = this.world?.bounds ?? DEFAULT_WORLD_BOUNDS;
+    const ISLAND_BOUNDS = this.world?.bounds ?? defaultBounds();
     const getIslandBoundsAtZ = this.world?.shoreAt ?? defaultShoreAt;
     // The detailed island (the helicopter may roam out over the harbour & the boroughs)
     const heli = this.activeMode === 'helicopter';

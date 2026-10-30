@@ -1,4 +1,6 @@
 import * as THREE from 'three/webgpu';
+import * as cityConfig from './city-config.js';
+import { configureCityRuntime } from './city-runtime.js';
 import { pass, mrt, output, normalView, positionView, metalness, roughness, vec2, smoothstep } from 'three/tsl';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { createPostProcessing } from './post-processing.js';
@@ -21,6 +23,8 @@ import { setupSceneCulling, updateSceneCulling } from './scene-culling.js';
 import { CityAudioSystem } from './audio-system.js';
 
 // Application setup, shader warm-up and frame loop.
+
+configureCityRuntime(cityConfig);
 
 async function initApp() {
   const container = document.getElementById('canvas-container');

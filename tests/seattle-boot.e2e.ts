@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync} from 'node:fs';
 import {openChrome,spawnServer,minimalEnv}from'@treycausey/kit/e2e';
 const root=new URL('..',import.meta.url).pathname;
 const server=await spawnServer({argv:p=>['uv','run','python','-c',`from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler; ThreadingHTTPServer.request_queue_size=128; ThreadingHTTPServer(('127.0.0.1',${p}),SimpleHTTPRequestHandler).serve_forever()`],cwd:root,env:minimalEnv(['PATH','HOME','UV_CACHE_DIR']),healthPath:'/index.html'});
@@ -13,19 +13,27 @@ try{
   const started=Date.now();await page.goto(server.url+(process.env.E2E_BACKEND==='webgl'?'/?webgl':''),{waitUntil:'networkidle'});
   await page.waitForSelector('body[data-ready="true"]',{timeout:120000});
   const state=await page.evaluate(()=>window.slopSeattle.getState()),timing=await page.evaluate(()=>performance.getEntriesByType('resource').map(r=>({name:r.name,decoded:r.decodedBodySize,transfer:r.transferSize})));
-  if(process.env.BOOT_BASELINE!=='1')assert.ok(![...requests.values()].some(r=>/\/(landmarks|city-grid)\.js(?:\?|$)/.test(new URL(r.url).pathname)),'Seattle never downloads Manhattan landmark/city generation');
+  if(process.env.BOOT_BASELINE!=='1')assert.ok(![...requests.values()].some(r=>/\/(landmarks|city-grid|city-config|nyc-geodata)\.js(?:\?|$)/.test(new URL(r.url).pathname)),'Seattle never downloads Manhattan geography or generation');
   assert.deepEqual(errors,[]);assert.deepEqual(chrome.blocked,[]);
   const report={elapsedMs:Date.now()-started,startupMs:state.startupMs,shaderCompileMs:state.shaderCompileMs,gpu:state.gpu,requests:[...requests.values()],resources:timing};
   writeFileSync(`${root}/tmp/codex-demo-boot-${process.env.BOOT_LABEL??'current'}-${process.env.E2E_BACKEND??'webgpu'}.json`,JSON.stringify(report,null,2));
   console.log(JSON.stringify({result:'PASS',elapsedMs:report.elapsedMs,startupMs:report.startupMs,requests:report.requests.length,localDecodedBytes:timing.filter(r=>r.name.startsWith(server.url)).reduce((s,r)=>s+r.decoded,0),localTransferBytes:report.requests.filter(r=>r.url.startsWith(server.url)).reduce((s,r)=>s+(r.bytes??0),0)}));
-  const compatibility=await page.evaluate(async()=>{
-    const THREE=await import('three/webgpu'),landmarks=await import('./js/landmarks.js'),state=await import('./js/landmark-state.js'),{ThirdPersonControllerManager}=await import('./js/controllers.js');
+  const nyc=await chrome.context.newPage();
+  const importmap=readFileSync(`${root}/newyork.html`,'utf8').match(/<script type="importmap">([^]*?)<\/script>/)[1];
+  await nyc.route('**/__nyc_contract.html',route=>route.fulfill({contentType:'text/html',body:`<script type="importmap">${importmap}</script>`}));
+  await nyc.goto(server.url+'/__nyc_contract.html');
+  const compatibility=await nyc.evaluate(async()=>{
+    const config=await import('./js/city-config.js'),runtime=await import('./js/city-runtime.js');runtime.configureCityRuntime(config);
+    const THREE=await import('three/webgpu'),landmarks=await import('./js/landmarks.js'),state=await import('./js/landmark-state.js'),{ThirdPersonControllerManager}=await import('./js/controllers.js'),{createWaterMaterial}=await import('./js/tsl-materials.js');
     const scene=new THREE.Scene(),result=landmarks.buildLandmarks(scene),lawn=state.bryantParkLawn;
-    const controller=Object.create(ThirdPersonControllerManager.prototype);controller.world=null;
+    const controller=new ThirdPersonControllerManager(scene,result.colliders);
     const height=controller.getGroundHeight((lawn.minX+lawn.maxX)/2,(lawn.minZ+lawn.maxZ)/2);
-    return {same:landmarks.bryantParkLawn===lawn,height,top:lawn.top,finite:Object.values(lawn).every(Number.isFinite),colliders:result.colliders.length};
+    const water=createWaterMaterial();
+    return {same:landmarks.bryantParkLawn===lawn,height,top:lawn.top,finite:Object.values(lawn).every(Number.isFinite),colliders:result.colliders.length,spawn:controller.entities.person.position.z,expectedSpawn:config.streetZ(37)+12,park:runtime.CENTRAL_PARK_BOUNDS===config.CENTRAL_PARK_BOUNDS,water:Boolean(water.normalNode)};
   });
+  await nyc.close();
   assert.equal(compatibility.same,true);assert.equal(compatibility.height,compatibility.top);assert.equal(compatibility.finite,true);assert.ok(compatibility.colliders>0);
+  assert.equal(compatibility.spawn,compatibility.expectedSpawn);assert.equal(compatibility.park,true);assert.equal(compatibility.water,true);
   let offline=true;await page.route('**/build/three.webgpu.js',async route=>offline?route.fulfill({status:503,body:'test: engine unavailable'}):route.continue());
   await page.reload({waitUntil:'networkidle'});
   await page.waitForSelector('#boot-retry',{timeout:10000});

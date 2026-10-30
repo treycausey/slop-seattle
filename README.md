@@ -28,7 +28,7 @@ A Seattle remix of [mrdoob’s Slop New York](https://github.com/mrdoob/slop-new
 - Stylized elevations and shoreline. This is a playful city interpretation, not a survey or navigation tool. Ambient road traffic, pedestrians, and transit from the Manhattan scene are not instantiated in Seattle.
 - WebGPU rendering with WebGL 2 fallback (or append `?webgl` to request it explicitly), sky and environment lighting, and WebGPU cascaded sun shadows. Seattle uses a single color pass; inherited vehicle decal overrides for the original reflection pipeline are removed before compilation. WebGL player characters use uniform pose buffers with the original geometry and animation.
 
-The original Manhattan app remains at `newyork.html`, with its source and regression tests preserved for upstream comparison.
+The original Manhattan app remains at `newyork.html`, with its source and regression tests preserved for upstream comparison. Each entry point supplies its geography through `configureCityRuntime` before constructing players or materials. Shared controls/shaders no longer download or parse Manhattan's geographic database when exploring Seattle. Standalone integrations of those shared modules must configure their city's runtime first; the New York entry supplies the original full configuration.
 
 ## Run and test
 

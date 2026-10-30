@@ -4,7 +4,7 @@ Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM buildi
 
 ## Issue 5: compact procedural quality — 2026-10-30
 
-Baseline `5e6b2ba`. The finite matrix, complete measurements, tradeoffs and evidence are in [QUALITY_PASS.md](QUALITY_PASS.md). Local gates pass; public release verification is the remaining delivery gate.
+Baseline `5e6b2ba`. The finite matrix, complete measurements, tradeoffs and evidence are in [QUALITY_PASS.md](QUALITY_PASS.md). Local and public release gates pass.
 
 - Same pinned engine, one minified core/TSL/WebGPU graph: 618,652 → 320,731 compressed response-body bytes (-48.2%). Absolute original build URLs are remapped too, preventing duplicate TSL runtimes through add-ons.
 - All 90 geographic datasets preserve the previous fields, numbers, coordinates and holes. The 87 regions fall from 4,870,305 → 2,848,622 gzip bytes (-41.5%); downtown 430,227 → 246,734 matched gzip bytes (-42.7%). Bounded validated SSP1 decoding handles gzip/already-inflated hosts. Both HTTP and malformed-data travel failure preserve position and permit successful retry. Source builders deterministically reproduce the payloads; rounded negative zero is normalized to the original JSON representation.
@@ -13,7 +13,9 @@ Baseline `5e6b2ba`. The finite matrix, complete measurements, tradeoffs and evid
 - 254 permanent tests pass. Both backends pass app, streamed north, all discoveries/Troll/Rainier, Blue Angels, avatar, eruption, 95 landmarks, Photo, parks, boot recovery and rendering suites. Final checks cover packed attributes, corrupt-data recovery and repeated resource bounds. Matched captures cover four places ×four times ×two compositions ×desktop/mobile: 64 per backend. Two visual polish rounds completed.
 - Six-view 1440×1000 batch timing: native 0.9975 → 0.9843 ms/step (essentially stable); WebGL 0.4549 → 0.4947 (+0.0399 ms). Three alternating cold contexts: median startup 1257 → 1498ms; initial retained JS heap 72,473,388 → 86,753,348 bytes; tracked GPU allocation 99,894,304 → 107,376,051 bytes. Richer rendering costs bounded memory and preparation time; download reduction is not a GPU-memory/startup-speedup or universal-FPS claim. Source ceiling explicitly rises from 94 to 112 KiB, including the extracted shared wave generator.
 
-Chrome touch emulation verifies controls/layout, not physical-phone performance. Native timestamp queries report the last query per context and are not summed across every benchmark step. The measured batch timing waits for GPU/GL completion. See the full matrix for limits and the pending public release evidence.
+Public runtime main `91cadde`, [successful Pages deployment](https://github.com/treycausey/slop-seattle/actions/runs/41089775242). Nineteen served runtime/HTML/index files match exactly; four served datasets decode identically to local files. Both public backends pass 95-Place search/travel, binary atlas, Photo/light/exit/focus, north scenery, lazy Blue Angels, walking, touch/layout and pool bounds with no media requests or errors. Engine bodies total 320,731 bytes; core body is 246,734. Feature branch removed.
+
+Chrome touch emulation verifies controls/layout, not physical-phone performance. Native timestamp queries report the last query per context and are not summed across every benchmark step. The measured batch timing waits for GPU/GL completion. See the full matrix for limits and public release evidence.
 
 ## Overnight demo, continuous park terrain — 2026-10-29
 

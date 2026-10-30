@@ -13,6 +13,7 @@
     "test:avatar": "bun run tests/seattle-avatar.e2e.ts",
     "test:eruption": "bun run tests/seattle-eruption.e2e.ts",
     "test:landmarks": "bun run tests/seattle-landmarks.e2e.ts",
+    "test:boot": "bun run tests/seattle-boot.e2e.ts",
     "data:seattle": "bun run tools/build-seattle.mjs",
     "data:north:fetch": "bun run tools/fetch-seattle-north.mjs",
     "data:north": "bun run tools/build-seattle-north.mjs",

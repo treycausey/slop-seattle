@@ -2,6 +2,22 @@
 
 Single acceptance record for the Seattle fork. Downtown retains 4,490 OSM building footprints. North Seattle adds 82,435 City GIS footprints, 8,135 street paths and 317 park polygon parts, extending through Fremont, Ballard, Wallingford, Phinney Ridge, Green Lake, Greenwood and Crown Hill. Landmark replacements reduce the number of generic buildings rendered. Heights without source measurements, terrain, and landmark architecture are stylized.
 
+## Overnight demo, startup checkpoint — 2026-10-29
+
+Baseline: `b6fa4f7`. Controllers and cameras needed only live Bryant Park lawn bounds, but imported the entire Manhattan landmark generator. A small shared state module preserves that live binding and removes `landmarks.js` and `city-grid.js` from Seattle's cold request graph. New York still constructs its real landmarks and re-exports the same state.
+
+| Action | Result and recovery | Evidence | Status |
+| --- | --- | --- | --- |
+| Cold Seattle boot | 63 → 62 requests; 221,056 fewer decoded resource bytes before the recovery guard | Baseline and lean cold CDP reports; assertion failed before extraction and passes after | Passed locally |
+| Inspect actual hosted encoding | Old city-grid + landmarks bodies total 66,469 gzip bytes; measure the replacement after publication | Public response headers; local server transfer totals are not hosted gzip totals | Publication pending |
+| Build original New York landmarks | Live namespace binding matches extracted state; controller lawn height equals actual generated top, 1.3192283746402036; 11 colliders | Real browser dynamic imports/build, both backends | Passed |
+| Fail engine module download, then retry | Readable error, focused 44px-minimum retry button; keyboard Enter reloads successfully after recovery; phone layout has no overflow | Local engine 503 regression timed out before fix, passes after; desktop/390×844 screenshots | Passed on WebGPU and WebGL |
+| Preserve exploration | 95 destinations, four travel modes, movement, camera/map/help/saved state and touch joystick remain usable | Complete local browser suite, both backends; 237 permanent tests, zero failures | Passed |
+| Preserve source budget | 90 KiB gzip Seattle module ceiling now includes the inline error guard; no downloaded artwork | Permanent payload test | Passed |
+| Publish checkpoint | Exact served files and public normal controls checked after deployment | Release evidence to follow | Pending |
+
+Single cold startup samples were 1252ms before, 1228ms after extraction, and about 1205ms native / 1045ms WebGL with recovery handling. These are noisy observations, not a claimed startup percentage improvement. This checkpoint changes loading and recovery; visual improvements, data compaction and a showcase experience remain tracked in [DEMO_PASS.md](DEMO_PASS.md). Touch evidence uses emulation, not a physical phone.
+
 ## Fivefold landmarks and performance — 2026-10-29
 
 Baseline: `f53bfe6`. Places increase from 19 to 95; permanent modeled sites increase from 17 to 93, with the two landscape views preserved. Existing canal bridges and all 31 discoveries remain separate. The [catalog](LANDMARKS.md) records the 76 City-sourced additions and their visual signatures. A shared instance layer supplies distant silhouettes; the detailed module imports after the first interactive frame, builds at most one site per frame, and retains at most eight. All resident sites share material batches. Detached replacements compile asynchronously before appearing; one shared queue serves at most one landmark replacement and one geographic job. Eviction releases geometry and render-object bindings, while palette materials remain shared.

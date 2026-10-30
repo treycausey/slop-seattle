@@ -12,6 +12,9 @@ test("procedural Seattle with 95 Places stays below 90 KiB gzip, without texture
   const directory = new URL("../js/", import.meta.url),
     names = readdirSync(directory).filter((n) => /^seattle.*\.js$/.test(n));
   let bytes = 0;
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const guard=html.match(/<script id="seattle-boot-guard">([^]*?)<\/script>/);
+  if(guard)bytes+=gzipSync(guard[1]).length;
   for (const name of names) {
     const source = readFileSync(new URL(name, directory));
     bytes += gzipSync(source).length;

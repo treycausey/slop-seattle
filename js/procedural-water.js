@@ -144,4 +144,3 @@ export function createWaterWaveTexture() {
   tex.needsUpdate = true;
   return tex;
 }
-

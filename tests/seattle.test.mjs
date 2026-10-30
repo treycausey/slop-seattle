@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
+import {decodeSeattle} from '../js/seattle-codec.js';
 import {
   DESTINATIONS,
   project,
@@ -11,7 +12,7 @@ import {
 } from "../js/seattle-config.js";
 import { nearestRoad } from "../js/seattle-map.js";
 const data = JSON.parse(
-  readFileSync(new URL("../js/seattle-data.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../tools/data/seattle-core.json", import.meta.url), "utf8"),
 );
 test("Seattle projection uses a metric east/south frame at Pike Place", () => {
   assert.deepEqual(project(47.6097, -122.3425), { x: 0, z: 0 });
@@ -32,10 +33,10 @@ test("offline Seattle snapshot has real footprints, named roads, finite heights 
 });
 test("every Seattle destination can reach a real road inside the playable coast", () => {
   assert.equal(new Set(DESTINATIONS.map((d) => d.id)).size, 95);
-  const north = JSON.parse(
+  const north = decodeSeattle(
     gunzipSync(
       readFileSync(
-        new URL("../js/seattle-north/atlas.json.gz", import.meta.url),
+        new URL("../js/seattle-north/atlas.bin.gz", import.meta.url),
       ),
     ),
   );

@@ -151,7 +151,8 @@ try {
     const lifecycle = await page.evaluate(async () => {
       const d = window.detailProbe.details,
         bytes = d.stats().instanceBytes;
-      const data = await (await fetch("./js/seattle-data.json")).json();
+      const {readSeattleResponse}=await import('../js/seattle-codec.js');
+      const data = await readSeattleResponse(await fetch("./js/seattle-data.bin.gz"));
       for (let i = 0; i < 12; i++) {
         d.setData(data);
         for (let j = 0; j < 9; j++) d.update({ x: 0, y: 40, z: 0 });

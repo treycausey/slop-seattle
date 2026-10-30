@@ -127,6 +127,14 @@ function market(g, p) {
     const cover = box(g, awning, x, 5.5, 14.2, 7.8, 0.22, 5);
     cover.rotation.x = 0.12;
     box(g, p.timber, x, 0.7, 13.7, 5, 1.05, 1.6);
+    // A shaded market stall has depth, stock and shelf edges rather than a featureless black opening.
+    box(g,p.timber,x,1.4,10.45,5.8,.14,.6);
+    box(g,p.timber,x,3.4,10.45,5.8,.14,.6);
+    for(const dx of [-2.4,-1.2,0,1.2,2.4]){
+      box(g,(Math.round(x*10)+Math.round(dx*10))%3?p.copper:p.roof,x+dx,1.6,10.55,.7,.7,.45);
+      box(g,p.limestone,x+dx,3.6,10.55,.5,.55,.35);
+    }
+    for(const dx of [-2.8,2.8])box(g,p.timber,x+dx,.2,10.5,.12,4.8,.7);
     for (let j = 0; j < 3; j++) {
       box(g, p.timber, x - 1.65 + j * 1.65, 1.75, 13.7, 1.5, 0.15, 1.4);
       for (let row = 0; row < 3; row++) for (let col = 0; col < 4; col++) {

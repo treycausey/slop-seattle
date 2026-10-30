@@ -1,6 +1,6 @@
 # Smaller downloads and higher visual quality
 
-Research completed 2026-10-30 against Seattle `6b76ab4` and upstream `e35c06c0d`. This is an investigation with isolated prototypes; the public game has not changed.
+Research completed 2026-10-30 against Seattle `6b76ab4` and upstream `e35c06c0d`. The measurements below describe the original investigation and its prototypes. The authorized implementation and release evidence are recorded in [QUALITY_PASS.md](QUALITY_PASS.md).
 
 Implementation is tracked in [issue #5](https://github.com/treycausey/slop-seattle/issues/5).
 

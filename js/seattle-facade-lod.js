@@ -20,6 +20,7 @@ import {
   smoothstep,
   cameraPosition,
   length,
+  attribute,
 } from "three/tsl";
 import { filteredPulse, hash2D, noise2D, cityUniforms, facadeAlongZ } from "./tsl-materials.js";
 const variants = new WeakMap();
@@ -66,7 +67,7 @@ export function applyFacadeLOD(mesh, farMaterial) {
   mesh.userData.facadeMaterial = original;
 }
 
-export function createDistantFacades(styles) {
+export function createDistantFacades(styles,footprint=false) {
   return styles.map(
     (s) => {
       const width = uniform(s.width),
@@ -76,7 +77,9 @@ export function createDistantFacades(styles) {
         seed = uniform(s.seed),
         base = uniform(new THREE.Color(s.tint));
       const mat = new THREE.MeshBasicNodeMaterial();
+      const wall=footprint?attribute('facadeWall','vec3'):null,box=footprint?attribute('box','vec4'):null;
       const grid = Fn(() => {
+        if(footprint)return vec2(wall.x.mul(floor(box.x.div(width).add(0.5)).max(1)).add(floor(box.w)),box.y.sub(wall.y).div(height));
         const u = mix(positionWorld.x,positionWorld.z,facadeAlongZ);
         return vec2(u.div(width), positionWorld.y.div(height));
       })();
@@ -87,7 +90,7 @@ export function createDistantFacades(styles) {
           y = float(1).sub(vertical).mul(0.5);
         return filteredPulse(p.x, x, float(1).sub(x), fw.x).mul(
           filteredPulse(p.y, s.minY??y, s.maxY??float(1).sub(y), fw.y),
-        ).mul(abs(normalWorldGeometry.y).lessThan(0.7).select(1,0));
+        ).mul(abs(normalWorldGeometry.y).lessThan(0.7).select(1,0)).mul(footprint?wall.z.lessThan(2.5):float(1));
       })();
       const glazing = Fn(() => {
         const n = abs(normalWorldGeometry),
@@ -110,7 +113,8 @@ export function createDistantFacades(styles) {
         );
         return color(0xffd195).mul(mask).mul(coverage).mul(cityUniforms.uInteriorGlow).mul(0.45);
       })();
-      mat.colorNode = mix(base, glazing, mask).mul(illumination).mul(daylight).add(light);
+      const masonry=footprint?base.mul(fract(box.w).mul(.3).add(.78)):base;
+      mat.colorNode = mix(masonry, glazing, mask).mul(illumination).mul(daylight).add(light);
       mat.userData.distantFacade = true;
       return mat;
     },

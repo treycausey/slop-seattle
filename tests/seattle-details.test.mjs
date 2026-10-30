@@ -11,7 +11,7 @@ import {
   PART_LIMIT,
   DETAIL_KINDS,
 } from "../js/seattle-detail-plan.js";
-const data = JSON.parse(readFileSync(new URL("../js/seattle-data.json", import.meta.url)));
+const data = JSON.parse(readFileSync(new URL("../tools/data/seattle-core.json", import.meta.url)));
 test('a replaced footprint cannot leave floating rooftop detail at its landmark',()=>{
   const site=LANDMARK_CATALOG.find(d=>d.id==='licton');
   const building={id:98765,x:site.x+140,z:site.z+120,height:30,

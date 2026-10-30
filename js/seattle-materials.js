@@ -1,5 +1,8 @@
 import * as THREE from "three/webgpu";
 import { distantSurface } from "./seattle-facade-lod.js";
+import { streetFronts } from './seattle-shopfronts.js';
+import {createSeattleWater} from './seattle-water.js';
+export {createSeattleWater} from './seattle-water.js';
 import {
   Fn,
   float,
@@ -20,6 +23,8 @@ import {
   If,
   cameraPosition,
   normalViewGeometry,
+  normalize,
+  attribute,
 } from "three/tsl";
 import {
   bumpNormal,
@@ -90,40 +95,8 @@ export function surface(kind, tint, metalness = 0) {
   return distantSurface(mat,tint);
 }
 
-export function createSeattleWater() {
-  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.2, roughness: 0.22 });
-  const wave = Fn(() => {
-    const p = positionWorld.xz,
-      pixel = length(fwidth(p));
-    return sin(p.x.mul(0.24).add(p.y.mul(0.13)).add(time.mul(0.75)))
-      .mul(0.11)
-      .mul(smoothstep(2, 0.3, pixel.mul(0.24)))
-      .add(
-        sin(p.x.mul(0.49).sub(p.y.mul(0.31)).sub(time.mul(1.1)))
-          .mul(0.04)
-          .mul(smoothstep(2, 0.3, pixel.mul(0.5))),
-      )
-      .add(
-        sin(p.x.mul(1.4).add(p.y.mul(1.9)).add(time.mul(1.7)))
-          .mul(0.012)
-          .mul(smoothstep(2, 0.3, pixel.mul(1.9))),
-      );
-  });
-  mat.normalNode = bumpNormal(wave());
-  mat.colorNode = Fn(() => {
-    const p = positionWorld.xz,
-      gust = noise2D(p.mul(0.012).add(time.mul(0.004)));
-    const crest = smoothstep(0.965, 0.995, sin(p.x.mul(0.24).add(p.y.mul(0.13)).add(time.mul(0.75))))
-      .mul(smoothstep(0.62, 0.85, noise2D(p.mul(vec2(0.12, 0.45)))))
-      .mul(smoothstep(1.5, 0.15, length(fwidth(p))));
-    return mix(mix(color(0x163e47), color(0x3c6970), gust.mul(0.7).add(0.15)), color(0x96b4ad), crest.mul(0.45));
-  })();
-  mat.roughnessNode = Fn(() => noise2D(positionWorld.xz.mul(0.018)).mul(0.13).add(0.17))();
-  return mat;
-}
-
 // Several palettes share the existing two facade shader families, retaining batching.
-export function createSeattleFacades() {
+export function createSeattleFacades(footprintLocal=false) {
   const glass = [0x304b59, 0x566e71, 0x3e6260].map((glassTint, i) =>
     createCurtainWallMaterial({
       glassTint,
@@ -131,6 +104,7 @@ export function createSeattleFacades() {
       windowWidth: 2.2 + i * 0.45,
       floorHeight: 3.6,
       seed: 11 + i,
+      footprintLocal,
     }),
   );
   const masonry = [0xc2b69f, 0x9c6d54, 0x775347, 0xd4ccc0, 0xa6a29a].map((stoneColor, i) => {
@@ -142,6 +116,7 @@ export function createSeattleFacades() {
       windowRatioX: 0.52,
       windowRatioY: 0.66,
       seed: 30 + i,
+      footprintLocal,
     });
     const original = mat.colorNode;
     mat.colorNode = Fn(() => {
@@ -170,7 +145,14 @@ export function createSeattleFacades() {
         .select(color(0x4b5456).mul(noise2D(positionWorld.xz.mul(0.8)).mul(0.12).add(0.9)), old),
     )();
   }
-  const all = [...glass, ...masonry];
+  const siding=footprintLocal?[0xa4b5af,0xc9c2a9,0x647b82].map((stoneColor,i)=>{
+    const mat=createPreWarBuildingMaterial({stoneColor,trimColor:0xe5dfca,windowWidth:1.9,floorHeight:3.1,windowRatioX:.52,windowRatioY:.66,seed:70+i,footprintLocal:true});
+    const original=mat.colorNode,wall=attribute('facadeWall','vec3'),box=attribute('box','vec4');
+    const y=box.y.sub(wall.y),joint=filteredPulse(fract(y.div(.19)),.015,.07,fwidth(y.div(.19)));
+    mat.colorNode=original.mul(float(1).sub(joint.mul(.18)));
+    return mat;
+  }):[];
+  const all = [...glass, ...masonry,...siding];
   for (const mat of all) {
     const rough = mat.roughnessNode ?? float(mat.roughness),
       metal = mat.metalnessNode ?? float(mat.metalness);
@@ -184,7 +166,7 @@ export function createSeattleFacades() {
       return result;
     })();
   }
-  return all;
+  return footprintLocal?all.map(streetFronts):all;
 }
 
 export function createSeattlePalette() {
@@ -199,8 +181,10 @@ export function createSeattlePalette() {
       fine = mix(float(0.5), noise2D(p.mul(2.7)), smoothstep(0.6, 0.08, pixel));
     return mix(color(0x31532b), color(0x55783c), macro.mul(0.65).add(fine.mul(0.18)));
   })();
+  const road=createRoadSurfaceMaterial();
+  if(!road.userData.seattleRelief){road.normalNode=normalize(normalViewGeometry.mul(.82).add(road.normalNode.mul(.18)));road.roughnessNode=road.roughnessNode.mul(.25).add(.6);road.userData.seattleRelief=true;}
   return {
-    asphalt: distantSurface(createRoadSurfaceMaterial(),0x55575a),
+    asphalt: distantSurface(road,0x55575a),
     paving: distantSurface(createSidewalkMaterial(),0x99938a),
     grass:distantSurface(grass,0x456136),
     water: createSeattleWater(),
@@ -209,6 +193,7 @@ export function createSeattlePalette() {
     steel: surface("metal", 0x818c8b, 0.7),
     dark: surface("metal", 0x263c45, 0.55),
     copper: surface("copper", 0x5b8b73, 0.5),
+    rust:surface('copper',0x945b3c,.18),
     timber: surface("timber", 0x887458),
     roof: surface("roof", 0x884c3d, 0.25),
     blueRoof: surface("roof", 0x9caeba, 0.5),
@@ -216,5 +201,6 @@ export function createSeattlePalette() {
     ground: surface("paving", 0x7e827a),
     flatRoof:distantSurface(flatRoof,0x52595a),
     leaf: surface("stone", 0x315d41),
+    canopy:surface('stone',0x648258),
   };
 }

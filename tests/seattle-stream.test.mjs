@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
+import {decodeSeattle} from '../js/seattle-codec.js';
 import {
   wantedRegions,
   combineRegions,
@@ -23,10 +24,10 @@ import { pitchedRoofPositions } from "../js/seattle-roofs.js";
 const base = new URL("../js/seattle-north/", import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL("manifest.json", base)));
 const core = JSON.parse(
-  readFileSync(new URL("../js/seattle-data.json", import.meta.url)),
+  readFileSync(new URL("../tools/data/seattle-core.json", import.meta.url)),
 );
 const unzip = (name) =>
-  JSON.parse(gunzipSync(readFileSync(new URL(name, base))));
+  decodeSeattle(gunzipSync(readFileSync(new URL(name, base))));
 test("pitched house roofs face the sky and their gable ends face outward", () => {
   const values = pitchedRoofPositions(-5, 5, -8, 8, 6, 9),
     normals = [];
@@ -56,11 +57,11 @@ test("north survey snapshot is independently loadable, bounded and fully covered
     bytes = 0;
   const ids = new Set();
   for (const t of manifest.tiles) {
-    const raw = readFileSync(new URL(`${t.id}.json.gz`, base));
+    const raw = readFileSync(new URL(`${t.id}.bin.gz`, base));
     assert.equal(raw.length, t.bytes);
     assert.ok(raw.length < 128 * 1024);
     bytes += raw.length;
-    const data = JSON.parse(gunzipSync(raw));
+    const data = decodeSeattle(gunzipSync(raw));
     buildings += data.buildings.length;
     for (const b of data.buildings) {
       assert.ok(!ids.has(b.id), `duplicate ${b.id}`);
@@ -154,7 +155,7 @@ test("Ship Canal and Green Lake are water; bank constraints and bridge decks kee
   }
 });
 test("bridge decks align with the City survey street centerlines", () => {
-  const atlas = unzip("atlas.json.gz");
+  const atlas = unzip("atlas.bin.gz");
   for (const b of BRIDGES) {
     const p = nearestRoad(atlas, b.x, b.z);
     assert.ok(p.distance < 20, `${b.name}: centerline distance ${p.distance}`);
@@ -165,12 +166,12 @@ test("bridge decks align with the City survey street centerlines", () => {
   }
 });
 test("real north destinations snap to local streets in the streamed survey and Green Lake park preserves the lake hole", () => {
-  const atlas = unzip("atlas.json.gz");
+  const atlas = unzip("atlas.bin.gz");
   for (const d of DESTINATIONS.filter((d) => d.z < -2520)) {
     const data = combineRegions(
       core,
       wantedRegions(manifest, d.arrival.x, d.arrival.z).map((t) => ({
-        data: unzip(`${t.id}.json.gz`),
+        data: unzip(`${t.id}.bin.gz`),
         city: { colliders: [] },
       })),
     );

@@ -8,11 +8,11 @@ import {
   terrainHeightAt,
   project,
   isLand,
-  inRing,
   WATERWAYS,
   landmarkReplacesFootprint,
 } from "./seattle-config.js";
 import { polygonContains } from "./building-collision.js";
+import { parkBuffers, TERRAIN_STEP } from './seattle-park-buffers.js';
 import {
   createSeattlePalette,
   createSeattleFacades,
@@ -189,7 +189,7 @@ function* buildSeattleSteps(scene, data, options = {}) {
     bay.castShadow = false;
     bay.renderOrder=1;
     const ground = [];
-    const step = 54;
+    const step = TERRAIN_STEP;
     const heights = new Map();
     const groundHeight = (x, z) => {
       const key = `${x}:${z}`;
@@ -237,48 +237,19 @@ function* buildSeattleSteps(scene, data, options = {}) {
   const parkGeometry = [];
   for (const park of data.parks) {
     if (park.ring.length < 4) continue;
-    const bounds = chunk ? data.bounds : CORE_BOUNDS,
-      xs = park.ring.map((v) => v[0]),
-      zs = park.ring.map((v) => v[1]),
-      points = [],
-      step = 24;
-    for (
-      let z = Math.floor(Math.max(bounds.minZ, Math.min(...zs)) / step) * step;
-      z < Math.min(bounds.maxZ, Math.max(...zs));
-      z += step
-    )
-      for (
-        let x =
-          Math.floor(Math.max(bounds.minX, Math.min(...xs)) / step) * step;
-        x < Math.min(bounds.maxX, Math.max(...xs));
-        x += step
-      ) {
-        if (
-          !inRing(park.ring, x + 12, z + 12) ||
-          (park.holes ?? []).some((h) => inRing(h, x + 12, z + 12)) ||
-          !isLand(x + 12, z + 12)
-        )
-          continue;
-        for (const [dx, dz] of [
-          [0, 0],
-          [0, step],
-          [step, step],
-          [0, 0],
-          [step, step],
-          [step, 0],
-        ])
-          points.push(x + dx, terrainHeightAt(x + dx, z + dz) + 0.55, z + dz);
-      }
-    if (points.length) {
+    const buffers=parkBuffers(park,chunk?data.bounds:CORE_BOUNDS,
+      (outer,holes)=>THREE.ShapeUtils.triangulateShape(outer.map(([x,z])=>new THREE.Vector2(x,z)),holes.map(r=>r.map(([x,z])=>new THREE.Vector2(x,z)))),terrainHeightAt,isLand,BOUNDS);
+    if (buffers.indices.length) {
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(buffers.positions, 3));
+      geo.setIndex(buffers.indices);
       geo.computeVertexNormals();
       parkGeometry.push(geo);
     }
     if (chunk) yield;
   }
   if (parkGeometry.length) {
-    mesh(group, mergeGeometries(parkGeometry), p.grass);
+    mesh(group, mergeGeometries(parkGeometry), p.grass).name='Surveyed park lawns';
     parkGeometry.forEach(g => g.dispose());
   }
   const roadGeo = [],

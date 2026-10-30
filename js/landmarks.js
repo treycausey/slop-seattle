@@ -9,7 +9,7 @@ import {
 } from './tsl-materials.js';
 import { batchStaticGroupMeshes } from './city-grid.js';
 
-let bryantParkLawn;
+import { bryantParkLawn, setBryantParkLawn } from './landmark-state.js';
 
 // Custom architectural 3D models for Midtown Manhattan's iconic landmarks
 
@@ -694,7 +694,7 @@ function buildLandmarks(scene) {
     fitToSite([bpGroup], blockSite('Bryant Park'), c0, { height: 30, stretch: true });
     bpGroup.updateMatrixWorld(true);
     const lb = new THREE.Box3().setFromObject(lawn);
-    bryantParkLawn = { minX: lb.min.x, maxX: lb.max.x, minZ: lb.min.z, maxZ: lb.max.z, top: lb.max.y };
+    setBryantParkLawn({ minX: lb.min.x, maxX: lb.max.x, minZ: lb.min.z, maxZ: lb.max.z, top: lb.max.y });
   }
 
   // =========================================================================

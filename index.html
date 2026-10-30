@@ -20,6 +20,20 @@
   <link rel="modulepreload" href="./js/seattle-config.js" />
   <link rel="modulepreload" href="./js/seattle-city.js" />
   <link rel="modulepreload" href="./js/seattle-map.js" />
+  <script id="seattle-boot-guard">
+    window.addEventListener('error',event=>{
+      if(event.target?.type!=='module'||document.body?.dataset.ready==='true')return;
+      const show=()=>{
+        const status=document.getElementById('loading-status');
+        if(!status||document.getElementById('boot-retry'))return;
+        status.textContent='Seattle could not load. Check your connection, then try again.';
+        document.querySelector('.loading-line').hidden=true;
+        const retry=document.createElement('button');retry.id='boot-retry';retry.type='button';
+        retry.textContent='Try again';retry.onclick=()=>location.reload();status.after(retry);retry.focus();
+      };
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
+    },true);
+  </script>
   <script type="module" src="./js/seattle.js"></script>
   <link rel="stylesheet" href="./css/seattle.css" />
 </head>

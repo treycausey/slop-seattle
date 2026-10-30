@@ -38,7 +38,7 @@ function keyboardHarness(nyc = {}) {
       './helicopter.js': {},
       './pedestrians.js': {},
       './vehicle-lights.js': {},
-      './landmarks.js': {},
+      './landmark-state.js': {},
       './building-collision.js': polygonCollision
     }
   });

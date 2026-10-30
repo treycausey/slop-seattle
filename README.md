@@ -44,6 +44,7 @@ The development server binds to `127.0.0.1:4178`. The deployed site needs only s
 ```sh
 bun run test
 bun run test:e2e
+bun run test:boot
 bun run test:north
 bun run test:secrets
 bun run test:eruption
@@ -53,7 +54,7 @@ bun run test:blue
 bun run test:avatar
 ```
 
-The browser test uses installed Google Chrome and kit’s isolated test server/browser helpers. It checks the real control and map paths, records screenshots under ignored `tmp/`, and closes its browser and server. Tests never target the deployed site. Validation is recorded in [ACCEPTANCE.md](ACCEPTANCE.md).
+The browser test uses installed Google Chrome and kit’s isolated test server/browser helpers. It checks the real control and map paths, records screenshots under ignored `tmp/`, and closes its browser and server. `test:boot` checks cold imports, shared New York landmark state, and keyboard recovery from an unavailable engine download. Seattle skips Manhattan landmark generation at startup and offers a focused Try again button if a module download fails. Tests never target the deployed site. Validation is recorded in [ACCEPTANCE.md](ACCEPTANCE.md).
 
 Visual regression runs:
 
